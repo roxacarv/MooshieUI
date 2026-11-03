@@ -151,6 +151,20 @@ back view even with the negative.
 - ComfyUI must be running a version that supports the Anima architecture and
   `PrimitiveStringMultiline` (tested on 0.41.1).
 
+## Placement
+
+Each character can have its own box on a canvas in the Characters panel
+(`CharacterLayoutCanvas.svelte`): drag to move, drag a corner to resize, arrow
+keys to nudge, optional snap to a 5 percent grid, Swap and Reset to columns.
+A box is stored as centre and size as fractions of the image
+(`MultiCharacter.region`, `utils/characterRegion.ts`). A character without a
+box keeps its equal full-height column, so older settings and images behave as
+before. The backend refuses boxes smaller than 0.1 or leaving the image.
+"Also say the position in words" appends `left side` or `right side` (by box
+centre; nothing in the middle third) to that character's prompt, because a box
+is a strong hint, not a rule. The layout is saved with the image metadata and
+restored on remix.
+
 ## Status after the second trial
 
 In the owner's own use of the app after the scene-strength, shared-scene and

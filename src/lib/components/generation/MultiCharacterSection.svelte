@@ -7,6 +7,7 @@
   import { locale } from "../../stores/locale.svelte.js";
   import { checkNodeAvailable, ensureMultiCharacterNodes, loraChangesTextAdapter } from "../../utils/api.js";
   import { restartComfyuiAndWait } from "../../utils/comfyuiRestart.js";
+  import CharacterLayoutCanvas from "./CharacterLayoutCanvas.svelte";
 
   /** The sampler node the whole workflow hangs off (see MULTI_CHARACTER_PACKAGES). */
   const SAMPLER_CLASS = "RSMultiCharacterSampler";
@@ -38,15 +39,6 @@
     { value: "precision" as const, label: locale.t("generation.multi_character.quality_precision") },
     { value: "normal" as const, label: locale.t("generation.multi_character.quality_normal") },
   ]);
-
-  /** Where each slot sits; iteration one is always left then right. */
-  function positionLabel(index: number): string {
-    return locale.t(
-      index === 0
-        ? "generation.multi_character.position_left"
-        : "generation.multi_character.position_right",
-    );
-  }
 
   /** Last path segment, so a long subfolder does not crowd the picker. */
   function loraLabel(name: string): string {
@@ -176,7 +168,10 @@
           <span class="font-medium text-neutral-300">
             {locale.t("generation.multi_character.character", { n: String(index + 1) })}
           </span>
-          <span class="uppercase tracking-wide text-neutral-500">{positionLabel(index)}</span>
+          <span
+            class="h-2.5 w-2.5 rounded-full {index === 0 ? 'bg-amber-400' : 'bg-sky-400'}"
+            aria-hidden="true"
+          ></span>
         </div>
 
         <textarea
@@ -225,6 +220,24 @@
         {/if}
       </div>
     {/each}
+
+    <CharacterLayoutCanvas />
+
+    <div class="space-y-1.5">
+      <label class="flex items-center gap-2 text-neutral-400 select-none cursor-pointer">
+        <input
+          type="checkbox"
+          class="accent-indigo-500"
+          checked={generation.multiCharacterSayPosition}
+          onchange={(e) => {
+            generation.multiCharacterSayPosition = e.currentTarget.checked;
+            generation.saveSettings();
+          }}
+        />
+        <span>{locale.t("generation.multi_character.say_position")}</span>
+      </label>
+      <p class="text-[11px] text-neutral-500">{locale.t("generation.multi_character.say_position_hint")}</p>
+    </div>
 
     <div class="space-y-1.5">
       <div class="text-neutral-500">{locale.t("generation.multi_character.scene_strength")}</div>
