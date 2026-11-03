@@ -82,6 +82,7 @@ import type {
   GenerationMode,
   GenerationParams,
   LoraEntry,
+  MultiCharacterParams,
   NovelAiCharacter,
   NovelAiDirectorReference,
   NovelAiFaceDetail,
@@ -679,6 +680,22 @@ export const DEFAULT_NANOSAUR_NEGATIVE_QUALITY = appendMissingNegativeTags(
 /** Reference-image slots kept in the store: the most any edit family takes (FLUX 3 Klein). */
 export const EDIT_REFERENCE_SLOTS = 10;
 
+/** One character's slot in the Characters panel (Anima multi-character). */
+export interface MultiCharacterSlot {
+  prompt: string;
+  /** `loras/` filename, subfolder included; `null` for none. */
+  loraName: string | null;
+  /** Used for both the model and the text encoder. */
+  loraStrength: number;
+}
+
+function emptyMultiCharacterSlots(): MultiCharacterSlot[] {
+  return [
+    { prompt: "", loraName: null, loraStrength: 1 },
+    { prompt: "", loraName: null, loraStrength: 1 },
+  ];
+}
+
 class GenerationStore {
   _mode = $state<GenerationMode>("txt2img");
   lastImageMode = $state<Exclude<GenerationMode, "video">>("txt2img");
@@ -925,6 +942,16 @@ class GenerationStore {
    *  accumulated input delta stays under threshold. MooshieUI-authored node,
    *  always available (no lazy install, unlike video's H3 TeaCache). */
   animaTeacacheEnabled = $state(false);
+  // --- Multi-character (Anima, RS MultiCharacter Sampler) ---
+  multiCharacterEnabled = $state(false);
+  /** Left to right. Iteration one is always two. */
+  multiCharacters = $state<MultiCharacterSlot[]>(emptyMultiCharacterSlots());
+  multiCharacterLoraMode = $state<"precision" | "normal">("precision");
+  /** 0 keeps characters strictly apart, 1 favors one continuous scene. */
+  multiCharacterCohesion = $state(0);
+  /** 0 leaves the main prompt nearly silent early on, 1 makes it count from the first steps. */
+  multiCharacterSceneStrength = $state(0.6);
+  multiCharacterShareScene = $state(true);
   // --- Style Reference (IP-Adapter / Flux Redux) ---
   styleRefEnabled = $state(false);
   styleRefImage = $state<string | null>(null);
@@ -3223,6 +3250,23 @@ class GenerationStore {
     if (saved.styleTransferBlocks !== undefined) this.styleTransferBlocks = saved.styleTransferBlocks;
     if (saved.animaTeacacheEnabled !== undefined)
       this.animaTeacacheEnabled = saved.animaTeacacheEnabled;
+    if (saved.multiCharacterEnabled !== undefined)
+      this.multiCharacterEnabled = saved.multiCharacterEnabled;
+    if (Array.isArray(saved.multiCharacters) && saved.multiCharacters.length === 2) {
+      this.multiCharacters = saved.multiCharacters.map((slot: Partial<MultiCharacterSlot>) => ({
+        prompt: typeof slot?.prompt === "string" ? slot.prompt : "",
+        loraName: typeof slot?.loraName === "string" && slot.loraName ? slot.loraName : null,
+        loraStrength: typeof slot?.loraStrength === "number" ? slot.loraStrength : 1,
+      }));
+    }
+    if (saved.multiCharacterLoraMode === "precision" || saved.multiCharacterLoraMode === "normal")
+      this.multiCharacterLoraMode = saved.multiCharacterLoraMode;
+    if (typeof saved.multiCharacterCohesion === "number")
+      this.multiCharacterCohesion = Math.min(1, Math.max(0, saved.multiCharacterCohesion));
+    if (typeof saved.multiCharacterSceneStrength === "number")
+      this.multiCharacterSceneStrength = Math.min(1, Math.max(0, saved.multiCharacterSceneStrength));
+    if (typeof saved.multiCharacterShareScene === "boolean")
+      this.multiCharacterShareScene = saved.multiCharacterShareScene;
     if (saved.styleRefEnabled !== undefined) this.styleRefEnabled = saved.styleRefEnabled;
     if (saved.styleRefImage !== undefined) this.styleRefImage = saved.styleRefImage;
     if (saved.styleRefStrength !== undefined) this.styleRefStrength = saved.styleRefStrength;
@@ -3398,6 +3442,12 @@ class GenerationStore {
         styleTransferMegapixels: this.styleTransferMegapixels,
         styleTransferBlocks: this.styleTransferBlocks,
         animaTeacacheEnabled: this.animaTeacacheEnabled,
+        multiCharacterEnabled: this.multiCharacterEnabled,
+        multiCharacters: this.multiCharacters,
+        multiCharacterLoraMode: this.multiCharacterLoraMode,
+        multiCharacterCohesion: this.multiCharacterCohesion,
+        multiCharacterSceneStrength: this.multiCharacterSceneStrength,
+        multiCharacterShareScene: this.multiCharacterShareScene,
         styleRefEnabled: this.styleRefEnabled,
         styleRefImage: this.styleRefImage,
         styleRefStrength: this.styleRefStrength,
@@ -3918,6 +3968,69 @@ class GenerationStore {
     return locale.t(key, { file });
   }
 
+  /**
+   * The Characters panel as the backend takes it, or `null` when it is off or
+   * does not apply: only Anima text-to-image runs through the multi-character
+   * workflow, so a leftover toggle never leaks into another model.
+   */
+  multiCharacterParams(): MultiCharacterParams | null {
+    if (!this.multiCharacterEnabled || !this.isAnima || this.mode !== "txt2img") return null;
+    return {
+      enabled: true,
+      characters: this.multiCharacters.map((slot) => ({
+        prompt: slot.prompt.trim(),
+        lora: slot.loraName
+          ? {
+              name: slot.loraName,
+              strength_model: slot.loraStrength,
+              strength_clip: slot.loraStrength,
+            }
+          : null,
+      })),
+      lora_mode: this.multiCharacterLoraMode,
+      cohesion: this.multiCharacterCohesion,
+      scene_strength: this.multiCharacterSceneStrength,
+      share_scene: this.multiCharacterShareScene,
+    };
+  }
+
+  /**
+   * Restore the Characters panel from the JSON an image recorded under
+   * `mooshie_multi_character`. Reads defensively: metadata comes from files the
+   * user may have edited or imported, so anything off-shape is ignored rather
+   * than thrown. A LoRA the install no longer has is dropped, as for global LoRAs.
+   */
+  restoreMultiCharacter(raw: string, availableLoras: string[]): boolean {
+    let data: Partial<MultiCharacterParams> | null;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      return false;
+    }
+    if (!data || data.enabled !== true || !Array.isArray(data.characters) || data.characters.length !== 2) {
+      return false;
+    }
+    this.multiCharacters = data.characters.map((character) => {
+      const lora = character?.lora;
+      const loraName = typeof lora?.name === "string" && availableLoras.includes(lora.name) ? lora.name : null;
+      return {
+        prompt: typeof character?.prompt === "string" ? character.prompt : "",
+        loraName,
+        loraStrength: loraName && typeof lora?.strength_model === "number" ? lora.strength_model : 1,
+      };
+    });
+    this.multiCharacterLoraMode = data.lora_mode === "normal" ? "normal" : "precision";
+    if (typeof data.cohesion === "number") {
+      this.multiCharacterCohesion = Math.min(1, Math.max(0, data.cohesion));
+    }
+    if (typeof data.scene_strength === "number") {
+      this.multiCharacterSceneStrength = Math.min(1, Math.max(0, data.scene_strength));
+    }
+    if (typeof data.share_scene === "boolean") this.multiCharacterShareScene = data.share_scene;
+    this.multiCharacterEnabled = true;
+    return true;
+  }
+
   toParams(options: GenerationToParamsOptions = {}) {
     // Video mode loads its own UNet/CLIP/VAE trio from the `video_*` fields and
     // never touches `checkpoint`, so the image-pipeline model guards below would
@@ -4360,6 +4473,7 @@ class GenerationStore {
       anima_ref_guidance: this.animaRefGuidance,
       anima_ref_correction: this.animaRefCorrection,
       anima_teacache_enabled: this.animaTeacacheEnabled,
+      multi_character: this.multiCharacterParams(),
       // Only the slots the current family shows: a FLUX 3 session's extra
       // references must not ride along once a 1- or 3-slot model is picked.
       edit_reference_images: this.editReferenceImages

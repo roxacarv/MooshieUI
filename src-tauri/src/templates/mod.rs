@@ -5,6 +5,7 @@ pub mod image_edit;
 pub mod img2img;
 pub mod inpainting;
 pub mod mesh3d;
+pub mod multichar;
 pub mod music;
 pub mod rife;
 pub mod segment_detail;
@@ -34,6 +35,7 @@ use crate::comfyui::types::{BaseSources, GenerationParams, PromptSegment, StageC
 /// must call this before `build_workflow`.
 pub fn validate_generation_params(params: &GenerationParams) -> Result<(), String> {
     validate_pause_resume(params)?;
+    multichar::validate(params)?;
 
     // Video mode has its own parameter set; validate it and return early so
     // image-only guards (input images, ControlNet, style transfer) never
@@ -955,6 +957,12 @@ pub fn build_workflow(
         // Video builds its own complete graph and must bypass finish_workflow
         // (upscale/facefix/segment chains and MooshieSaveImage are image-only).
         return video::build(params, seed, video_metadata_supported);
+    }
+
+    // The multi-character sampler builds its own complete graph, so it skips
+    // the per-mode model patches and goes straight to the shared post chains.
+    if multichar::active(params) {
+        return finish_workflow(multichar::build(params, seed), params, seed);
     }
 
     if pause_resume_active(params) {

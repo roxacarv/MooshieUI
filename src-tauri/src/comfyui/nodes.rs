@@ -65,6 +65,27 @@ const STYLE_TRANSFER_PACKAGES: &[RequiredCustomNodePackage] = &[
     },
 ];
 
+// Anima multi-character generation (the "Characters" panel): per-character
+// prompts and LoRAs routed by the RS MultiCharacter Sampler. Installed lazily
+// when the feature is switched on rather than at setup, and pinned to the
+// revision the workflow in `templates/multichar.rs` was tested against: the
+// pack is alpha and changes almost daily.
+const MULTI_CHARACTER_PACKAGES: &[RequiredCustomNodePackage] = &[RequiredCustomNodePackage {
+    name: "ComfyUI_RS_MultiCharacter_Sampler",
+    git_url: "https://github.com/raspie10032/ComfyUI_RS_MultiCharacter_Sampler.git",
+    git_rev: "d62788806d2a95877a0af9e976076fb628784b51",
+    verify_nodes: &[
+        "RSMultiCharacterPrompt",
+        "RSMultiCharacterLoRA",
+        "RSMultiCharacterPosition",
+        "RSMultiCharacterFinalize",
+        "RSMultiCharacterSampler",
+    ],
+    // The pack ships only optional requirements files (detailer, tagger,
+    // reference); the sampler itself needs nothing beyond ComfyUI's own deps.
+    requirements_file: "requirements.txt",
+}];
+
 /// Anima Reference Adapter v2 LoRA. `AnimaRefAdapter` loads it by this exact
 /// filename from `models/loras/` (and downloads it there itself when it is
 /// missing); the Style Reference panel's download button saves it under the
@@ -217,6 +238,10 @@ pub const MISSING_CONTROLNET_NODES_MARKER: &str = "Required ControlNet custom no
 /// Substring present in [`verify_required_style_transfer_nodes`] error output.
 pub const MISSING_STYLE_TRANSFER_NODES_MARKER: &str =
     "Required style transfer custom nodes failed to load";
+
+/// Substring present in [`verify_required_multi_character_nodes`] error output.
+pub const MISSING_MULTI_CHARACTER_NODES_MARKER: &str =
+    "Required multi-character custom nodes failed to load";
 
 /// Substring present in [`verify_required_gguf_nodes`] error output.
 pub const MISSING_GGUF_NODES_MARKER: &str = "Required GGUF custom nodes failed to load";
@@ -671,6 +696,64 @@ pub async fn ensure_required_style_transfer_nodes(
         );
     }
     Ok(())
+}
+
+/// Ensure the RS MultiCharacter Sampler pack is cloned at its pinned revision.
+/// Called when the user switches multi-character generation on. ComfyUI only
+/// loads a pack at startup, so a fresh install needs a restart before
+/// [`verify_required_multi_character_nodes`] passes.
+pub async fn ensure_required_multi_character_nodes(
+    comfyui_path: &str,
+    venv_path: &str,
+    network_proxy: Option<&str>,
+    pip_index_url: Option<&str>,
+) -> Result<(), String> {
+    let custom_nodes = Path::new(comfyui_path).join("custom_nodes");
+    std::fs::create_dir_all(&custom_nodes).map_err(|e| {
+        format!(
+            "Failed to create ComfyUI custom_nodes directory at '{}': {}",
+            custom_nodes.display(),
+            e
+        )
+    })?;
+
+    for package in MULTI_CHARACTER_PACKAGES {
+        ensure_custom_node_package(
+            &custom_nodes,
+            venv_path,
+            network_proxy,
+            pip_index_url,
+            *package,
+        )
+        .await
+        .map_err(|e| {
+            format!(
+                "{}: {}: {}",
+                MISSING_MULTI_CHARACTER_NODES_MARKER, package.name, e
+            )
+        })?;
+    }
+
+    log::info!("Ensured required multi-character custom node packages");
+    Ok(())
+}
+
+/// Verify the multi-character node classes are loaded in the running ComfyUI.
+pub async fn verify_required_multi_character_nodes(
+    http_client: &reqwest::Client,
+    base_url: &str,
+) -> Result<(), String> {
+    let missing = missing_packages_nodes(http_client, base_url, MULTI_CHARACTER_PACKAGES).await?;
+    if missing.is_empty() {
+        log::info!("Verified required multi-character custom node classes");
+        Ok(())
+    } else {
+        Err(format!(
+            "{}: {}. Restart ComfyUI so it loads them, and check its log for import errors.",
+            MISSING_MULTI_CHARACTER_NODES_MARKER,
+            missing.join(", ")
+        ))
+    }
 }
 
 /// Ensure the ComfyUI-GGUF loader nodes are present so .gguf diffusion models
@@ -1643,6 +1726,8 @@ pub fn server_error_payload(error: &str, port: u16) -> serde_json::Value {
         "missing_style_transfer_nodes"
     } else if error.contains(MISSING_IPADAPTER_PLUS_NODES_MARKER) {
         "missing_ipadapter_nodes"
+    } else if error.contains(MISSING_MULTI_CHARACTER_NODES_MARKER) {
+        "missing_multi_character_nodes"
     } else if error.contains("exited with") || error.contains("process exited") {
         "crashed"
     } else {
@@ -2225,6 +2310,7 @@ mod tests {
             H3_TEACACHE_PACKAGES,
             INT8_FAST_PACKAGES,
             IPADAPTER_PLUS_PACKAGES,
+            MULTI_CHARACTER_PACKAGES,
         ]
         .concat()
     }
