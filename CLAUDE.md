@@ -9,6 +9,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **No `claude/` branches**: Never create or push a branch named `claude/...` (or after any AI tool), even when the session assigns one. Use `chore/<slug>` (the push skill's convention) or another descriptive prefix.
 - **Commit as the owner**: Author and commit as `Mooshieblob <blob@mooshieblob.com>`. Set the repo-local `git config user.name` and `user.email` before the first commit; an AI author on a branch commit becomes a `Co-authored-by` line when GitHub squash-merges the PR.
 
+## Project Overview
+
+MooshieUI is a beginner-friendly front end for ComfyUI (images, video, music) with an optional NovelAI image backend. Stack: **Svelte 5 + TypeScript + Vite + Tailwind 4** frontend, **Rust** backend (Tauri v2, axum, tokio, rusqlite). It installs and manages ComfyUI itself via a setup wizard, or connects to a remote one. It runs as a Tauri desktop app, as a browser/LAN web app, and as a headless Docker/K8s server. Package name is `comfyui-desktop`; this is a fork of `Mooshieblob1/MooshieUI`.
+
+Full repository map, instances, request flow and feature list: [`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md). Cross-agent entry point: [`AGENTS.md`](AGENTS.md).
+
 ## Build & Run
 
 ```bash
@@ -29,6 +35,39 @@ The suite is green — treat any failure as a real regression.
 
 Validation is `npm run build` + `cargo check` (both feature sets) + `cargo test` (see the `pre-commit-check` skill).
 
+## Linux Build (.deb and .AppImage)
+
+Prerequisites: Node.js 22.12+ per README (CI builds with 20; Node 18 is too old for Vite 6), stable Rust, and Tauri v2's Linux libraries. On Debian/Ubuntu (same list CI installs on ubuntu-22.04):
+
+```bash
+sudo apt-get install -y libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libappindicator3-dev \
+  librsvg2-dev patchelf libssl-dev libgtk-3-dev libsoup-3.0-dev build-essential curl wget file
+npm install
+```
+
+Build each format in its **own** invocation (this is what `release.yml` does: Tauri patches a `__TAURI_BUNDLE_TYPE` marker into the binary per package type, and one process building several formats races on it):
+
+```bash
+# Same invocation as CI. Do NOT use `npm run tauri build -- --bundles ...`: scripts/tauri-wrapper.mjs
+# runs `npm exec tauri build --bundles x` without `--`, so npm swallows --bundles and cargo
+# fails with "unexpected argument 'x'".
+export APPIMAGELAUNCHER_DISABLE=1 NO_STRIP=true APPIMAGE_EXTRACT_AND_RUN=1
+npx tauri build --bundles appimage --config .github/tauri-no-updater-artifacts.json  # -> bundle/appimage/*.AppImage
+npx tauri build --bundles deb      --config .github/tauri-no-updater-artifacts.json  # -> bundle/deb/*.deb
+# (outputs under src-tauri/target/release/bundle/)
+```
+
+**Homebrew users (Linuxbrew)**: keep brew's `pkg-config`/glib out of PATH while bundling. linuxdeploy's GTK plugin calls `pkg-config`, got brew's `giomoduledir`, and the AppImage step failed with `Failed to run plugin: gtk`. Use brew only for Node/Rust, e.g. a dir of symlinks to `node npm npx cargo rustc patchelf` placed first in PATH, followed by `/usr/local/bin:/usr/bin:/bin`. Node 18 from `/usr/bin` is too old, so do not rely on the system one. Verified: this produced `MooshieUI_2.3.29_amd64.AppImage` (~106 MiB) on Ubuntu 24.04 with Node 26 and Rust 1.99 (Ubuntu 24.04 uses `libayatana-appindicator3-dev`).
+
+Notes:
+- `npm run tauri` is `scripts/tauri-wrapper.mjs` (fine for `dev` and a plain `build`, not for `--bundles`; see above). For `build` it first runs `npm run build`, and on Linux calls `ensure-linuxdeploy.mjs`, which installs a pinned, SHA-256-verified linuxdeploy plus a tiny ELF wrapper (`scripts/linuxdeploy-wrapper.c`) so Tauri's `dd` patch does not break AppImage bundling on rolling distros (Arch). It also sets `APPIMAGELAUNCHER_DISABLE=1`, `NO_STRIP=true`, `APPIMAGE_EXTRACT_AND_RUN=1`. The first AppImage build downloads linuxdeploy, so it needs network.
+- Without `TAURI_SIGNING_PRIVATE_KEY` the wrapper adds `bundle.createUpdaterArtifacts=false`, so local builds succeed unsigned. CI uses `.github/tauri-no-updater-artifacts.json` the same way; only the dedicated signing job holds the key.
+- `tauri.conf.json` has `bundle.targets: "all"`, so `--bundles` is what restricts the format. `rpm` also works (`--bundles rpm`) and is built in CI.
+- First build compiles a large crate graph (bundled SQLite, JXL, ONNX runtime loader); expect a long first run. `ort` is `load-dynamic`, so ONNX Runtime is not linked into the bundle.
+- Headless server binary (no webkit needed): `cargo build --release --manifest-path src-tauri/Cargo.toml --no-default-features --features server` produces `mooshieui-server`. Build the frontend first (`npm run build`), since it is embedded.
+- **Testing an AppImage next to an installed .deb**: the AppImage does not touch the installed package, but both use the same data dir (`~/.local/share/com.mooshieui.desktop`: `config.json`, gallery, managed ComfyUI). Isolate the test build with `MOOSHIEUI_DATA_DIR=$HOME/mooshie-test ./MooshieUI_*.AppImage` (read in `config.rs`; it takes priority over the bootstrap pointer file). Managed ComfyUI defaults to port 18288, so stop the main install first or change the port in the test instance, and keep `keep_alive` off in the test data dir.
+- The AppImage flow above was run end to end on Ubuntu 24.04 (first release build ~5 min). The `.deb` flow has not been run. If a build fails, check missing `-dev` packages first; `error-logs/` is a good place for build logs.
+
 ## Skills
 
 Project skills live in `.claude/skills/` (synced from canonical `.agents/skills/` — edit there first, then re-sync):
@@ -44,6 +83,7 @@ Project skills live in `.claude/skills/` (synced from canonical `.agents/skills/
 | `add-generation-param` | New generation setting across store/types/Rust/templates (6 touchpoints) |
 | `add-comfyui-node` | New custom ComfyUI Python node: mooshie_nodes.py + Rust registration + workflow hookup |
 | `workflow-template-builder` | ComfyUI workflow JSON templates in `src-tauri/src/templates/` |
+| `multi-character` | Experimental Anima multi-character generation: code map, measured findings, test method; append new findings |
 
 ## Critical Architecture (Non-Obvious)
 
