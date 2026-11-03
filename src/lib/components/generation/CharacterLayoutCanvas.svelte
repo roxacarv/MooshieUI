@@ -6,6 +6,7 @@
     MIN_SIDE,
     clampRegion,
     columnRegion,
+    overlapRegion,
     snap,
     type CharacterRegion,
   } from "../../utils/characterRegion.js";
@@ -34,7 +35,12 @@
   );
 
   function effective(index: number): CharacterRegion {
-    return slots[index].region ?? columnRegion(index, slots.length);
+    return (
+      slots[index].region ??
+      (generation.multiCharacterInteraction.trim()
+        ? overlapRegion(index, slots.length)
+        : columnRegion(index, slots.length))
+    );
   }
 
   function setRegion(index: number, region: CharacterRegion) {

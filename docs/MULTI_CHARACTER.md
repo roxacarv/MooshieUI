@@ -166,6 +166,19 @@ is a strong hint, not a rule. The layout is saved with the image metadata and
 restored on remix. In the owner's own use, placement held in every test with no
 leakage between characters, also with an extra global (artist) LoRA.
 
+## Interaction
+
+One text field, "Interaction (both characters)", is appended to every
+character's prompt (`MultiCharacterParams.interaction`). While it is filled,
+characters without a box of their own use an overlapping layout (boxes 0.65 wide
+centred at 0.35 and 0.65) instead of two columns; their own boxes always win.
+Measured (Yor and Uzaki by tag, seeds 201 to 203, "hugging each other, arms
+around each other, close together"): with plain columns each half became its own
+hugging pair, four people (0 of 3); with overlapping boxes the pair hugged with
+the right identities in 2 of 3, and in the third some features mixed. The
+pack's Character Interaction node (delay3 and delay6) changed little in two
+seeds and added a third head in the other, so it is not exposed.
+
 ## Status after the second trial
 
 In the owner's own use of the app after the scene-strength, shared-scene and

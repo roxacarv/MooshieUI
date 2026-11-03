@@ -135,12 +135,30 @@ fn column(index: usize, count: usize) -> (f64, f64, f64, f64) {
 /// the model's coarse resolution.
 const MIN_REGION_SIDE: f64 = 0.1;
 
-/// Where character `index` stands: its own box when it has one, otherwise its
-/// slot's column.
+/// The overlapping layout used while characters interact. Measured with two
+/// characters: boxes 0.65 wide centred at 0.35 and 0.65 gave a connected pair,
+/// where two plain columns gave a hugging pair in each half.
+fn overlapping_box(index: usize, count: usize) -> (f64, f64, f64, f64) {
+    if count == 2 {
+        (if index == 0 { 0.35 } else { 0.65 }, 0.5, 0.65, 1.0)
+    } else {
+        column(index, count)
+    }
+}
+
+/// What the characters do together, trimmed; empty when not interacting.
+fn interaction_text(multi: &MultiCharacterParams) -> String {
+    strip_lora_tags(&multi.interaction).trim().to_string()
+}
+
+/// Where character `index` stands: its own box when it has one, the
+/// overlapping layout while they interact, otherwise its slot's column.
 fn region_for(multi: &MultiCharacterParams, index: usize) -> (f64, f64, f64, f64) {
+    let count = multi.characters.len();
     match multi.characters.get(index).and_then(|c| c.region) {
         Some(r) => (r.x, r.y, r.width, r.height),
-        None => column(index, multi.characters.len()),
+        None if !interaction_text(multi).is_empty() => overlapping_box(index, count),
+        None => column(index, count),
     }
 }
 
@@ -223,11 +241,15 @@ pub fn build(params: &GenerationParams, seed: i64) -> WorkflowResult {
     // What each column is told. The scene text is appended so both halves agree
     // on the setting; `character_prompts` stays the characters alone for the
     // refinement conditioning below, which already adds the scene once.
+    let interaction = interaction_text(multi);
     let column_prompts: Vec<String> = character_prompts
         .iter()
         .enumerate()
         .map(|(index, text)| {
             let mut full = text.clone();
+            if !interaction.is_empty() {
+                full = format!("{full}, {interaction}");
+            }
             if multi.say_position {
                 if let Some(words) = position_words(region_for(multi, index).0) {
                     full = format!("{full}, {words}");
@@ -456,6 +478,7 @@ mod tests {
                 scene_strength: 0.0,
                 share_scene: false,
                 say_position: false,
+                interaction: String::new(),
             }),
             ..Default::default()
         }
@@ -765,5 +788,35 @@ mod tests {
         assert!(said.contains(&"1girl, black hair, right side".to_string()));
         set_region(&mut p, 0, 0.5, 0.5, 0.5, 1.0);
         assert!(texts(&build(&p, 1)).contains(&"1girl, blonde hair".to_string()));
+    }
+
+    #[test]
+    fn interaction_text_goes_to_every_character_and_overlaps_the_boxes() {
+        let mut p = params([None, None]);
+        p.multi_character.as_mut().unwrap().interaction = "hugging each other".into();
+        let result = build(&p, 1);
+        let texts: Vec<String> = result
+            .workflow
+            .values()
+            .filter(|n| n["class_type"] == "PrimitiveStringMultiline")
+            .map(|n| n["inputs"]["value"].as_str().unwrap().to_string())
+            .collect();
+        assert!(texts.contains(&"1girl, blonde hair, hugging each other".to_string()));
+        assert!(texts.contains(&"1girl, black hair, hugging each other".to_string()));
+        let inputs = &node(&result, "RSMultiCharacterPosition")["inputs"];
+        assert_eq!(inputs["character1_x"], 0.35);
+        assert_eq!(inputs["character2_x"], 0.65);
+        assert_eq!(inputs["character1_width"], 0.65);
+    }
+
+    #[test]
+    fn own_boxes_win_over_the_interaction_layout() {
+        let mut p = params([None, None]);
+        p.multi_character.as_mut().unwrap().interaction = "holding hands".into();
+        set_region(&mut p, 0, 0.3, 0.5, 0.5, 1.0);
+        let result = build(&p, 1);
+        let inputs = &node(&result, "RSMultiCharacterPosition")["inputs"];
+        assert_eq!(inputs["character1_x"], 0.3);
+        assert_eq!(inputs["character2_x"], 0.65);
     }
 }

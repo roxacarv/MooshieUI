@@ -54,7 +54,7 @@ Goal: the user chooses where each character stands instead of fixed halves.
 - Test: same prompts and seeds with columns, shifted boxes and a swapped order;
   note when the layout is ignored (framing and the right-hand bias seen before).
 
-### 2. Interaction
+### 2. Interaction - first version built, see MULTI_CHARACTER.md "Interaction"
 
 Goal: two characters that touch or look at each other, reliably.
 

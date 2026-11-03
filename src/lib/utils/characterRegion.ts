@@ -22,6 +22,16 @@ export function columnRegion(index: number, count: number): CharacterRegion {
   return { x: (index + 0.5) * width, y: 0.5, width, height: 1 };
 }
 
+/**
+ * The layout used while the characters interact: two overlapping boxes. Measured
+ * with two characters, plain columns turn each half into its own hugging pair.
+ * Must match `overlapping_box` in the backend (templates/multichar.rs).
+ */
+export function overlapRegion(index: number, count: number): CharacterRegion {
+  if (count !== 2) return columnRegion(index, count);
+  return { x: index === 0 ? 0.35 : 0.65, y: 0.5, width: 0.65, height: 1 };
+}
+
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
 
 /** Clamp a box to a valid one: sides within [MIN_SIDE, 1], fully inside the image. */

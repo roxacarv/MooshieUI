@@ -221,6 +221,19 @@
       </div>
     {/each}
 
+    <div class="space-y-1.5">
+      <div class="text-neutral-500">{locale.t("generation.multi_character.interaction")}</div>
+      <input
+        type="text"
+        class="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-2.5 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-600 focus:border-indigo-500 focus:outline-none"
+        placeholder={locale.t("generation.multi_character.interaction_placeholder")}
+        value={generation.multiCharacterInteraction}
+        oninput={(e) => (generation.multiCharacterInteraction = e.currentTarget.value)}
+        onchange={() => generation.saveSettings()}
+      />
+      <p class="text-[11px] text-neutral-500">{locale.t("generation.multi_character.interaction_hint")}</p>
+    </div>
+
     <CharacterLayoutCanvas />
 
     <div class="space-y-1.5">

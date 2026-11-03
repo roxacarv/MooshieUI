@@ -151,6 +151,12 @@ pub struct MultiCharacterParams {
     /// `right side`), because a box is a strong hint rather than a rule.
     #[serde(default)]
     pub say_position: bool,
+    /// What the characters do together ("hugging each other"). Appended to every
+    /// character's prompt. While it is set, characters without a box of their
+    /// own overlap instead of sitting in separate columns, because separate
+    /// columns turn each half into its own hugging pair.
+    #[serde(default)]
+    pub interaction: String,
 }
 
 fn default_multi_character_lora_mode() -> String {
