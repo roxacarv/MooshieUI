@@ -102,6 +102,22 @@ pub struct MultiCharacter {
     /// `loras/` filename, subfolder included.
     #[serde(default)]
     pub lora: Option<LoraParam>,
+    /// Where this character stands. `None` keeps the equal full-height column
+    /// for its slot, which is what every request made before placement existed
+    /// means.
+    #[serde(default)]
+    pub region: Option<CharacterRegion>,
+}
+
+/// A character's box on the canvas, as fractions of the image: the centre
+/// (`x`, `y`) and the size (`width`, `height`), the way the sampler reads boxes.
+/// Left and top are 0.0, right and bottom 1.0.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CharacterRegion {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
 }
 
 /// Settings for the Anima multi-character workflow (RS MultiCharacter Sampler).
@@ -131,6 +147,10 @@ pub struct MultiCharacterParams {
     /// column agrees on the setting.
     #[serde(default = "default_multi_character_share_scene")]
     pub share_scene: bool,
+    /// Also tell each character where it stands in words (`left side`,
+    /// `right side`), because a box is a strong hint rather than a rule.
+    #[serde(default)]
+    pub say_position: bool,
 }
 
 fn default_multi_character_lora_mode() -> String {

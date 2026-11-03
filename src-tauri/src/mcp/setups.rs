@@ -418,11 +418,13 @@ mod tests {
             characters: vec![MultiCharacter {
                 prompt: "1girl, blonde hair".into(),
                 lora: None,
+                region: None,
             }],
             lora_mode: "precision".into(),
             cohesion: 0.0,
             scene_strength: 0.6,
             share_scene: true,
+            say_position: false,
         });
         assert!(snapshot(&p).unwrap().multi_character.is_none());
     }

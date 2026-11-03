@@ -1,3 +1,4 @@
+import { parseRegion, type CharacterRegion } from "../utils/characterRegion.js";
 import { ipcStore, userScopedKey } from "../utils/ipc.js";
 import { triggerSync } from "../utils/syncTrigger.js";
 import { compileTimeline, isTimelineActive } from "../utils/timelineProvider.js";
@@ -695,12 +696,14 @@ export interface MultiCharacterSlot {
   loraName: string | null;
   /** Used for both the model and the text encoder. */
   loraStrength: number;
+  /** Where the character stands; `null` keeps the slot's equal column. */
+  region: CharacterRegion | null;
 }
 
 function emptyMultiCharacterSlots(): MultiCharacterSlot[] {
   return [
-    { prompt: "", loraName: null, loraStrength: 1 },
-    { prompt: "", loraName: null, loraStrength: 1 },
+    { prompt: "", loraName: null, loraStrength: 1, region: null },
+    { prompt: "", loraName: null, loraStrength: 1, region: null },
   ];
 }
 
@@ -960,6 +963,7 @@ class GenerationStore {
   /** 0 leaves the main prompt nearly silent early on, 1 makes it count from the first steps. */
   multiCharacterSceneStrength = $state(0.6);
   multiCharacterShareScene = $state(true);
+  multiCharacterSayPosition = $state(false);
   // --- Style Reference (IP-Adapter / Flux Redux) ---
   styleRefEnabled = $state(false);
   styleRefImage = $state<string | null>(null);
@@ -3272,8 +3276,11 @@ class GenerationStore {
         prompt: typeof slot?.prompt === "string" ? slot.prompt : "",
         loraName: typeof slot?.loraName === "string" && slot.loraName ? slot.loraName : null,
         loraStrength: typeof slot?.loraStrength === "number" ? slot.loraStrength : 1,
+        region: parseRegion(slot?.region),
       }));
     }
+    if (typeof saved.multiCharacterSayPosition === "boolean")
+      this.multiCharacterSayPosition = saved.multiCharacterSayPosition;
     if (saved.multiCharacterLoraMode === "precision" || saved.multiCharacterLoraMode === "normal")
       this.multiCharacterLoraMode = saved.multiCharacterLoraMode;
     if (typeof saved.multiCharacterCohesion === "number")
@@ -3464,6 +3471,7 @@ class GenerationStore {
         multiCharacterCohesion: this.multiCharacterCohesion,
         multiCharacterSceneStrength: this.multiCharacterSceneStrength,
         multiCharacterShareScene: this.multiCharacterShareScene,
+        multiCharacterSayPosition: this.multiCharacterSayPosition,
         styleRefEnabled: this.styleRefEnabled,
         styleRefImage: this.styleRefImage,
         styleRefStrength: this.styleRefStrength,
@@ -4004,11 +4012,13 @@ class GenerationStore {
               strength_clip: slot.loraStrength,
             }
           : null,
+        region: slot.region,
       })),
       lora_mode: this.multiCharacterLoraMode,
       cohesion: this.multiCharacterCohesion,
       scene_strength: this.multiCharacterSceneStrength,
       share_scene: this.multiCharacterShareScene,
+      say_position: this.multiCharacterSayPosition,
     };
   }
 
@@ -4035,6 +4045,7 @@ class GenerationStore {
         prompt: typeof character?.prompt === "string" ? character.prompt : "",
         loraName,
         loraStrength: loraName && typeof lora?.strength_model === "number" ? lora.strength_model : 1,
+        region: parseRegion(character?.region),
       };
     });
     this.multiCharacterLoraMode = data.lora_mode === "normal" ? "normal" : "precision";
@@ -4045,6 +4056,7 @@ class GenerationStore {
       this.multiCharacterSceneStrength = Math.min(1, Math.max(0, data.scene_strength));
     }
     if (typeof data.share_scene === "boolean") this.multiCharacterShareScene = data.share_scene;
+    this.multiCharacterSayPosition = data.say_position === true;
     this.multiCharacterEnabled = true;
     return true;
   }

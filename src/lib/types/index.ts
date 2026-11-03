@@ -56,6 +56,8 @@ export interface MultiCharacterPayload {
   prompt: string;
   /** LoRA applied to this character only (a `loras/` filename, subfolder included). */
   lora: LoraPayloadEntry | null;
+  /** Box on the canvas (centre and size as fractions of the image); null keeps the slot's column. */
+  region: { x: number; y: number; width: number; height: number } | null;
 }
 
 export interface MultiCharacterParams {
@@ -69,6 +71,8 @@ export interface MultiCharacterParams {
   scene_strength: number;
   /** Also append the main prompt to each character's own prompt. */
   share_scene: boolean;
+  /** Also say where each character stands in words (left side, right side). */
+  say_position: boolean;
 }
 
 export type RegionalPromptShape = "box" | "circle" | "lasso";

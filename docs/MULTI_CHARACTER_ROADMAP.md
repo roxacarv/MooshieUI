@@ -38,7 +38,7 @@ pinned version; check before promising it.
 
 ## Iterations
 
-### 1. Placement (the NovelAI canvas)
+### 1. Placement (the NovelAI canvas) - built, see MULTI_CHARACTER.md "Placement"
 
 Goal: the user chooses where each character stands instead of fixed halves.
 

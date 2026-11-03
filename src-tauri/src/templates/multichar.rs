@@ -56,6 +56,20 @@ pub fn validate(params: &GenerationParams) -> Result<(), String> {
         if character.prompt.trim().is_empty() {
             return Err(format!("Character {} needs a description.", index + 1));
         }
+        if let Some(r) = character.region {
+            let values = [r.x, r.y, r.width, r.height];
+            let sides_ok = r.width >= MIN_REGION_SIDE && r.height >= MIN_REGION_SIDE;
+            let inside = r.x - r.width / 2.0 >= -0.001
+                && r.x + r.width / 2.0 <= 1.001
+                && r.y - r.height / 2.0 >= -0.001
+                && r.y + r.height / 2.0 <= 1.001;
+            if !values.iter().all(|v| v.is_finite()) || !sides_ok || !inside {
+                return Err(format!(
+                    "Character {} has a position box that is too small or leaves the image.",
+                    index + 1
+                ));
+            }
+        }
         if let Some(lora) = character.lora.as_ref() {
             if lora.name.trim().is_empty() {
                 return Err(format!(
@@ -115,6 +129,30 @@ fn add_node(
 fn column(index: usize, count: usize) -> (f64, f64, f64, f64) {
     let width = 1.0 / count as f64;
     ((index as f64 + 0.5) * width, 0.5, width, 1.0)
+}
+
+/// Smallest box side the sampler can place; below it the region may vanish at
+/// the model's coarse resolution.
+const MIN_REGION_SIDE: f64 = 0.1;
+
+/// Where character `index` stands: its own box when it has one, otherwise its
+/// slot's column.
+fn region_for(multi: &MultiCharacterParams, index: usize) -> (f64, f64, f64, f64) {
+    match multi.characters.get(index).and_then(|c| c.region) {
+        Some(r) => (r.x, r.y, r.width, r.height),
+        None => column(index, multi.characters.len()),
+    }
+}
+
+/// Words for a box centre, or nothing when it sits in the middle third.
+fn position_words(x: f64) -> Option<&'static str> {
+    if x < 0.4 {
+        Some("left side")
+    } else if x > 0.6 {
+        Some("right side")
+    } else {
+        None
+    }
 }
 
 /// Sampler defaults of `initial_common_prior` / `common_after_step3_boost`
@@ -187,12 +225,18 @@ pub fn build(params: &GenerationParams, seed: i64) -> WorkflowResult {
     // refinement conditioning below, which already adds the scene once.
     let column_prompts: Vec<String> = character_prompts
         .iter()
-        .map(|text| {
-            if multi.share_scene && !common_prompt.is_empty() {
-                format!("{text}, {common_prompt}")
-            } else {
-                text.clone()
+        .enumerate()
+        .map(|(index, text)| {
+            let mut full = text.clone();
+            if multi.say_position {
+                if let Some(words) = position_words(region_for(multi, index).0) {
+                    full = format!("{full}, {words}");
+                }
             }
+            if multi.share_scene && !common_prompt.is_empty() {
+                full = format!("{full}, {common_prompt}");
+            }
+            full
         })
         .collect();
 
@@ -258,7 +302,7 @@ pub fn build(params: &GenerationParams, seed: i64) -> WorkflowResult {
     position_inputs.insert("character_count".into(), json!(count));
     for slot in 1..=SLOTS {
         let (x, y, width, height) = if slot <= count {
-            column(slot - 1, count)
+            region_for(multi, slot - 1)
         } else {
             (0.5, 0.5, 0.4, 0.8)
         };
@@ -399,16 +443,19 @@ mod tests {
                     MultiCharacter {
                         prompt: "1girl, blonde hair".into(),
                         lora: first,
+                        region: None,
                     },
                     MultiCharacter {
                         prompt: "1girl, black hair".into(),
                         lora: second,
+                        region: None,
                     },
                 ],
                 lora_mode: "precision".into(),
                 cohesion: 0.0,
                 scene_strength: 0.0,
                 share_scene: false,
+                say_position: false,
             }),
             ..Default::default()
         }
@@ -650,5 +697,73 @@ mod tests {
         assert!(validate(&p)
             .unwrap_err()
             .contains("only available for Anima"));
+    }
+
+    fn set_region(p: &mut GenerationParams, index: usize, x: f64, y: f64, w: f64, h: f64) {
+        p.multi_character.as_mut().unwrap().characters[index].region =
+            Some(crate::comfyui::types::CharacterRegion {
+                x,
+                y,
+                width: w,
+                height: h,
+            });
+    }
+
+    #[test]
+    fn own_boxes_replace_the_columns() {
+        let mut p = params([None, None]);
+        set_region(&mut p, 0, 0.3, 0.6, 0.5, 0.8);
+        set_region(&mut p, 1, 0.75, 0.5, 0.4, 1.0);
+        assert!(validate(&p).is_ok());
+        let result = build(&p, 1);
+        let inputs = &node(&result, "RSMultiCharacterPosition")["inputs"];
+        assert_eq!(inputs["character1_x"], 0.3);
+        assert_eq!(inputs["character1_y"], 0.6);
+        assert_eq!(inputs["character1_width"], 0.5);
+        assert_eq!(inputs["character1_height"], 0.8);
+        assert_eq!(inputs["character2_x"], 0.75);
+        assert_eq!(inputs["character2_width"], 0.4);
+    }
+
+    #[test]
+    fn a_character_without_a_box_keeps_its_column() {
+        let mut p = params([None, None]);
+        set_region(&mut p, 1, 0.7, 0.5, 0.5, 1.0);
+        let result = build(&p, 1);
+        let inputs = &node(&result, "RSMultiCharacterPosition")["inputs"];
+        assert_eq!(inputs["character1_x"], 0.25);
+        assert_eq!(inputs["character1_width"], 0.5);
+        assert_eq!(inputs["character2_x"], 0.7);
+    }
+
+    #[test]
+    fn boxes_that_leave_the_image_or_are_tiny_are_refused() {
+        let mut p = params([None, None]);
+        set_region(&mut p, 0, 0.95, 0.5, 0.4, 1.0);
+        assert!(validate(&p).is_err());
+        set_region(&mut p, 0, 0.5, 0.5, 0.05, 1.0);
+        assert!(validate(&p).is_err());
+        set_region(&mut p, 0, f64::NAN, 0.5, 0.5, 1.0);
+        assert!(validate(&p).is_err());
+    }
+
+    #[test]
+    fn saying_the_position_adds_words_only_when_asked() {
+        let mut p = params([None, None]);
+        let texts = |result: &WorkflowResult| -> Vec<String> {
+            result
+                .workflow
+                .values()
+                .filter(|n| n["class_type"] == "PrimitiveStringMultiline")
+                .map(|n| n["inputs"]["value"].as_str().unwrap().to_string())
+                .collect()
+        };
+        assert!(!texts(&build(&p, 1)).iter().any(|t| t.contains("side")));
+        p.multi_character.as_mut().unwrap().say_position = true;
+        let said = texts(&build(&p, 1));
+        assert!(said.contains(&"1girl, blonde hair, left side".to_string()));
+        assert!(said.contains(&"1girl, black hair, right side".to_string()));
+        set_region(&mut p, 0, 0.5, 0.5, 0.5, 1.0);
+        assert!(texts(&build(&p, 1)).contains(&"1girl, blonde hair".to_string()));
     }
 }
