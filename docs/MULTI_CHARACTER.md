@@ -151,6 +151,13 @@ back view even with the negative.
 - ComfyUI must be running a version that supports the Anima architecture and
   `PrimitiveStringMultiline` (tested on 0.41.1).
 
+## Status after the second trial
+
+In the owner's own use of the app after the scene-strength, shared-scene and
+optional-LoRA changes, many images came out consistent with two characters,
+including interaction between them and an artist tag. Some problems remain and
+have not been itemised. This is a hands-on report, not a measurement.
+
 ## LoRAs are optional
 
 Characters the model already knows (for example `yor briar`, `uzaki tsuki`) come
