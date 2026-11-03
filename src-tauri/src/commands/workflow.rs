@@ -47,9 +47,19 @@ pub async fn generate(
     // install is only consulted when the app launched the server itself.
     let models_are_local = {
         let config = state.config.read().await;
-        crate::commands::api::validate_generation_loras(&config, &params.loras)?;
+        crate::commands::api::validate_generation_loras(&config, &params.all_loras())?;
         crate::commands::api::generation_models_are_local(&config)
     };
+
+    // The multi-character pack is an on-demand install ComfyUI only loads at
+    // startup, so say so here instead of letting ComfyUI answer with a raw
+    // `missing_node_type` error.
+    if templates::multichar::active(&params) {
+        let base_url = state.base_url().await;
+        crate::comfyui::nodes::verify_required_multi_character_nodes(&state.http_client, &base_url)
+            .await
+            .map_err(AppError::InvalidWorkflow)?;
+    }
 
     // The MiniMax H3 nodes are verified here rather than at startup: they are
     // video-only and need ComfyUI >= 0.30, so an older or external server can be

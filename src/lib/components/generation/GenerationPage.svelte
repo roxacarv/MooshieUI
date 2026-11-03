@@ -20,6 +20,7 @@
   import ControlNetSettings from "./ControlNetSettings.svelte";
   import StyleTransferSettings from "./StyleTransferSettings.svelte";
   import StyleReferenceSection from "./StyleReferenceSection.svelte";
+  import MultiCharacterSection from "./MultiCharacterSection.svelte";
   import ImageEditSettings from "./ImageEditSettings.svelte";
   import VideoSettingsPanel from "../video/VideoSettingsPanel.svelte";
   import H3PromptGuidePanel from "../video/H3PromptGuidePanel.svelte";
@@ -73,6 +74,7 @@
   type SectionId =
     | "dimensions"
     | "prompts"
+    | "multiCharacter"
     | "imageInputs"
     | "imageEdit"
     | "videoSettings"
@@ -125,6 +127,7 @@
   const DEFAULT_SECTION_SIDES: Record<SectionId, SectionSide> = {
     dimensions: "left",
     prompts: "left",
+    multiCharacter: "left",
     imageInputs: "left",
     imageEdit: "left",
     videoSettings: "left",
@@ -159,6 +162,7 @@
   const SECTION_ORDER: SectionId[] = [
     "dimensions",
     "prompts",
+    "multiCharacter",
     "imageInputs",
     "imageEdit",
     "videoSettings",
@@ -362,6 +366,7 @@
   function sectionLabel(section: SectionId): string {
     if (section === "dimensions") return locale.t('generation.dimensions.title');
     if (section === "prompts") return locale.t('generation.prompts.title');
+    if (section === "multiCharacter") return locale.t('generation.multi_character.title');
     if (section === "imageInputs") return locale.t('generation.image.title');
     if (section === "imageEdit") return locale.t('generation.image_edit.title');
     if (section === "videoSettings") return locale.t('generation.video.title');
@@ -405,6 +410,8 @@
     if (section === "facefix")
       return generation.mode !== "inpainting" && !generation.isNovelAi;
     if (section === "styleTransfer") return generation.isAnima && generation.mode === "txt2img";
+    if (section === "multiCharacter")
+      return generation.isAnima && !generation.isNovelAi && generation.mode === "txt2img";
     if (section === "styleRef") return !generation.isNovelAi && (generation.mode === "txt2img" || generation.mode === "img2img" || generation.mode === "inpainting");
     return true;
   }
@@ -447,6 +454,7 @@
   let controlnetSectionOpen = $state(savedCollapse.controlnet !== false);
   let styleTransferSectionOpen = $state(savedCollapse.styleTransfer !== false);
   let styleRefSectionOpen = $state(savedCollapse.styleRef !== false);
+  let multiCharacterSectionOpen = $state(savedCollapse.multiCharacter !== false);
   let naiFaceDetailSectionOpen = $state(savedCollapse.naiFaceDetail !== false);
   let facefixSectionOpen = $state(savedCollapse.facefix !== false);
   let postSectionOpen = $state(savedCollapse.upscaleHistory !== false);
@@ -466,6 +474,7 @@
       controlnet: controlnetSectionOpen,
       styleTransfer: styleTransferSectionOpen,
       styleRef: styleRefSectionOpen,
+      multiCharacter: multiCharacterSectionOpen,
       naiFaceDetail: naiFaceDetailSectionOpen,
       facefix: facefixSectionOpen,
       upscaleHistory: postSectionOpen,
@@ -2243,6 +2252,27 @@
     </div>
   {/snippet}
 
+  {#snippet multiCharacterSection()}
+    <div bind:this={sectionRefs['multiCharacter']} class="rounded-lg border border-neutral-800 bg-neutral-900/40 transition-[height,opacity] duration-150 {draggingSection === 'multiCharacter' ? 'h-0 overflow-hidden opacity-0 m-0! p-0! border-0!' : 'opacity-100'}">
+      <div class="flex items-stretch w-full rounded-t-lg transition-colors hover:bg-neutral-800/50">
+        {@render dragHandle("multiCharacter")}
+        <button
+          class="flex-1 px-3 py-2 flex items-center justify-between text-xs text-neutral-300 hover:text-neutral-100 transition-colors"
+          onclick={() => (multiCharacterSectionOpen = !multiCharacterSectionOpen)}
+          title={multiCharacterSectionOpen ? locale.t('common.collapse', { section: locale.t('generation.multi_character.title') }) : locale.t('common.expand', { section: locale.t('generation.multi_character.title') })}
+        >
+          <span class="font-medium">{locale.t('generation.multi_character.title')}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 transition-transform {multiCharacterSectionOpen ? '' : '-rotate-90'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+      {#if multiCharacterSectionOpen}
+        <div class="px-3 pb-2 pt-0.5 space-y-3">
+          <MultiCharacterSection />
+        </div>
+      {/if}
+    </div>
+  {/snippet}
+
   {#snippet imageEditSection()}
     <div bind:this={sectionRefs['imageEdit']} class="rounded-xl border border-neutral-800 bg-[color-mix(in_srgb,var(--color-neutral-900)_60%,var(--color-neutral-950))] transition-[height,opacity] duration-150 {draggingSection === 'imageEdit' ? 'h-0 overflow-hidden opacity-0 m-0! p-0! border-0!' : 'opacity-100'}">
       {@render sectionHeader("imageEdit", imageEditSectionOpen, () => (imageEditSectionOpen = !imageEditSectionOpen))}
@@ -2339,6 +2369,8 @@
       {@render styleTransferSection()}
     {:else if section === "styleRef"}
       {@render styleRefSection()}
+    {:else if section === "multiCharacter"}
+      {@render multiCharacterSection()}
     {:else if section === "facefix"}
       {@render facefixSection()}
     {:else if section === "upscaleHistory"}

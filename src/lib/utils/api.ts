@@ -1327,6 +1327,15 @@ export async function installH3Teacache(): Promise<void> {
   return ipcInvoke("install_h3_teacache", {});
 }
 
+/**
+ * Install the multi-character node pack if it is missing. Resolves to whether
+ * the running ComfyUI already has it loaded; `false` means it was just
+ * installed (or failed to import) and ComfyUI needs a restart.
+ */
+export async function ensureMultiCharacterNodes(): Promise<boolean> {
+  return ipcInvoke("ensure_multi_character_nodes", {});
+}
+
 export async function installPipPackage(packageName: string): Promise<void> {
   return ipcInvoke("install_pip_package", { package: packageName });
 }

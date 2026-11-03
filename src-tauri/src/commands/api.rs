@@ -3628,6 +3628,51 @@ pub async fn install_h3_teacache(
     result.map_err(AppError::Other)
 }
 
+/// Install the pinned multi-character node pack when it is missing, and report
+/// whether the running ComfyUI has loaded it. ComfyUI only loads packs at
+/// startup, so `false` after a fresh install means "restart ComfyUI". A remote
+/// server has its own nodes: nothing is cloned for it, only checked.
+pub async fn ensure_multi_character_nodes_inner(state: &AppState) -> Result<bool, AppError> {
+    let (comfyui_path, venv_path, network_proxy, pip_index_url, local) = {
+        let config = state.config.read().await;
+        (
+            config.comfyui_path.clone(),
+            config.venv_path.clone(),
+            config.network_proxy.clone(),
+            config.pip_index_url.clone(),
+            generation_models_are_local(&config),
+        )
+    };
+
+    if local {
+        crate::comfyui::nodes::ensure_required_multi_character_nodes(
+            &comfyui_path,
+            &venv_path,
+            network_proxy.as_deref(),
+            pip_index_url.as_deref(),
+        )
+        .await
+        .map_err(AppError::Other)?;
+    }
+
+    let base_url = state.base_url().await;
+    Ok(
+        crate::comfyui::nodes::verify_required_multi_character_nodes(&state.http_client, &base_url)
+            .await
+            .is_ok(),
+    )
+}
+
+/// Install (if needed) and check the multi-character node pack. Driven by the
+/// Characters panel the first time the user switches it on.
+#[cfg(feature = "desktop")]
+#[tauri::command]
+pub async fn ensure_multi_character_nodes(
+    state: State<'_, Arc<AppState>>,
+) -> Result<bool, AppError> {
+    ensure_multi_character_nodes_inner(state.inner()).await
+}
+
 /// Install a custom node from a git repository into ComfyUI's custom_nodes directory.
 /// Emits `install:progress` events with { node_name, step, message, done } for live progress.
 #[cfg(feature = "desktop")]

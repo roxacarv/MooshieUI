@@ -1826,6 +1826,12 @@
         .join(", ");
     }
 
+    // The characters, their LoRAs and the mode are the image: without them the
+    // prompt alone cannot reproduce it, and "Use these settings" has nothing to restore.
+    if (params.multi_character?.enabled) {
+      metadata.mooshie_multi_character = JSON.stringify(params.multi_character);
+    }
+
     if (params.output_bit_depth !== "8bit") {
       metadata.bit_depth = params.output_bit_depth;
     }
@@ -1847,7 +1853,9 @@
     // MooshieUI-exclusive parameters
     metadata.mooshie_model_architecture = params.model_architecture;
 
-    if (params.smart_guidance) {
+    // Multi-character runs sample inside the RS node, which never sees the
+    // model patch Smart Guidance applies, so the flag would record a lie.
+    if (params.smart_guidance && !params.multi_character?.enabled) {
       metadata.mooshie_smart_guidance = "true";
     }
 
@@ -2019,6 +2027,9 @@
       }
 
       // MooshieUI-exclusive params round-trip
+      if (metadata.mooshie_multi_character !== undefined) {
+        generation.restoreMultiCharacter(metadata.mooshie_multi_character, models.loras);
+      }
       if (metadata.mooshie_smart_guidance !== undefined) {
         generation.smartGuidance = metadata.mooshie_smart_guidance === "true";
       }

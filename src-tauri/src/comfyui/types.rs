@@ -92,6 +92,59 @@ pub struct PositiveRegion {
     pub strength: f64,
 }
 
+/// One character of an Anima multi-character generation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiCharacter {
+    /// What this character looks like and does. The scene and style belong in
+    /// the main positive prompt.
+    pub prompt: String,
+    /// LoRA applied to this character's region only. Its `name` is a ComfyUI
+    /// `loras/` filename, subfolder included.
+    #[serde(default)]
+    pub lora: Option<LoraParam>,
+}
+
+/// Settings for the Anima multi-character workflow (RS MultiCharacter Sampler).
+///
+/// Characters are laid out left to right in the order given. Iteration one is
+/// exactly two characters without interaction between them.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiCharacterParams {
+    pub enabled: bool,
+    #[serde(default)]
+    pub characters: Vec<MultiCharacter>,
+    /// How per-character LoRAs are applied: "precision" keeps an independent
+    /// prediction per LoRA (about 4x the time of a plain run on two LoRAs, best
+    /// identity); "normal" shares layer work (about 1.7x, may drift identity).
+    #[serde(default = "default_multi_character_lora_mode")]
+    pub lora_mode: String,
+    /// 0.0 keeps characters strictly apart (the node's defaults); 1.0 trades
+    /// some of that separation for one continuous scene.
+    #[serde(default)]
+    pub cohesion: f64,
+    /// How strongly the main (scene) prompt shapes the image from the first
+    /// steps, 0.0 to 1.0. The sampler's own default (0.0 here) keeps the scene
+    /// prompt nearly silent while composition and background are decided.
+    #[serde(default = "default_multi_character_scene_strength")]
+    pub scene_strength: f64,
+    /// Also append the main prompt to each character's own prompt, so every
+    /// column agrees on the setting.
+    #[serde(default = "default_multi_character_share_scene")]
+    pub share_scene: bool,
+}
+
+fn default_multi_character_lora_mode() -> String {
+    "precision".to_string()
+}
+
+fn default_multi_character_scene_strength() -> f64 {
+    0.6
+}
+
+fn default_multi_character_share_scene() -> bool {
+    true
+}
+
 /// Seeds are 63-bit and exceed JavaScript's 2^53 safe-integer range, so they
 /// must cross the IPC/JSON boundary as strings. Serializes an i64 as a decimal
 /// string; accepts a string or a bare number (old persisted settings/clients).
@@ -163,6 +216,10 @@ pub struct GenerationParams {
     pub detail_segments: Vec<DetailSegment>,
     #[serde(default)]
     pub positive_regions: Vec<PositiveRegion>,
+    /// Anima multi-character generation. `None` or `enabled: false` leaves the
+    /// request on the ordinary txt2img path.
+    #[serde(default)]
+    pub multi_character: Option<MultiCharacterParams>,
     pub checkpoint: String,
     pub vae: Option<String>,
     pub loras: Vec<LoraParam>,
@@ -558,6 +615,19 @@ pub struct GenerationParams {
     /// a paused run. Never sent by the frontend.
     #[serde(skip)]
     pub stage: Option<StageContext>,
+}
+
+impl GenerationParams {
+    /// Every LoRA this request loads: the global chain, plus the per-character
+    /// LoRAs when multi-character generation is on. File checks go through
+    /// this so a character's LoRA is held to the same standard as any other.
+    pub fn all_loras(&self) -> Vec<LoraParam> {
+        let mut loras = self.loras.clone();
+        if let Some(multi) = self.multi_character.as_ref().filter(|m| m.enabled) {
+            loras.extend(multi.characters.iter().filter_map(|c| c.lora.clone()));
+        }
+        loras
+    }
 }
 
 /// One completed stage of a paused txt2img run.

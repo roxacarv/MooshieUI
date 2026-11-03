@@ -87,6 +87,8 @@ pub fn snapshot(params: &GenerationParams) -> Option<GenerationParams> {
     p.negative_segments.clear();
     p.detail_segments.clear();
     p.positive_regions.clear();
+    // Character descriptions (and their LoRAs) describe that one image too.
+    p.multi_character = None;
     p.facefix_prompt_override = None;
     // Inputs that point at one particular image (ComfyUI input files).
     p.input_image = None;
@@ -405,6 +407,24 @@ mod tests {
         assert!(!snap.style_ref_enabled);
         assert_eq!(snap.style_ref_image_2, None);
         assert_eq!(snap.seed, -1);
+    }
+
+    #[test]
+    fn snapshot_drops_the_character_descriptions() {
+        use crate::comfyui::types::{MultiCharacter, MultiCharacterParams};
+        let mut p = base();
+        p.multi_character = Some(MultiCharacterParams {
+            enabled: true,
+            characters: vec![MultiCharacter {
+                prompt: "1girl, blonde hair".into(),
+                lora: None,
+            }],
+            lora_mode: "precision".into(),
+            cohesion: 0.0,
+            scene_strength: 0.6,
+            share_scene: true,
+        });
+        assert!(snapshot(&p).unwrap().multi_character.is_none());
     }
 
     #[test]

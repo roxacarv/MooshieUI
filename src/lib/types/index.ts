@@ -51,6 +51,26 @@ export interface PositiveRegion {
   strength: number;
 }
 
+/** One character of an Anima multi-character generation, as the backend takes it. */
+export interface MultiCharacterPayload {
+  prompt: string;
+  /** LoRA applied to this character only (a `loras/` filename, subfolder included). */
+  lora: LoraPayloadEntry | null;
+}
+
+export interface MultiCharacterParams {
+  enabled: boolean;
+  /** Left to right. */
+  characters: MultiCharacterPayload[];
+  lora_mode: "precision" | "normal";
+  /** 0 keeps characters strictly apart, 1 favors one continuous scene. */
+  cohesion: number;
+  /** 0 leaves the main prompt nearly silent early on, 1 makes it count from the first steps. */
+  scene_strength: number;
+  /** Also append the main prompt to each character's own prompt. */
+  share_scene: boolean;
+}
+
 export type RegionalPromptShape = "box" | "circle" | "lasso";
 
 /** How regional prompts are applied in txt2img. */
@@ -355,6 +375,7 @@ export interface GenerationParams {
   negative_segments: PromptSegment[];
   detail_segments: DetailSegment[];
   positive_regions?: PositiveRegion[];
+  multi_character?: MultiCharacterParams | null;
   checkpoint: string;
   vae: string | null;
   loras: LoraPayloadEntry[];

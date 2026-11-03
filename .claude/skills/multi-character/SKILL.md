@@ -1,0 +1,108 @@
+---
+name: multi-character
+description: >-
+  Work on MooshieUI's experimental Anima multi-character generation (two
+  characters with their own prompts and LoRAs, RS MultiCharacter Sampler). Use
+  when changing, testing, debugging or extending that feature, or for
+  /multi-character. Carries what was measured and learned; append new findings.
+model: sonnet
+---
+
+# Multi-character generation (Anima)
+
+Status: **experimental, iteration one** (exactly two characters, side by side, no
+interaction). Not for release until the node pack's licence is reviewed. Human
+doc: `docs/MULTI_CHARACTER.md` (keep it in step with this file).
+
+## Read first
+
+1. `docs/MULTI_CHARACTER.md` for behaviour, controls, measurements, gaps.
+2. `src-tauri/src/templates/multichar.rs` for the graph (12+ unit tests).
+3. `tests/` (user's own material): `tests/workflows/Anima-Regional-0.4.7-Global-Mix-Adaptive-Focus.json` (a vanilla ComfyUI Anima-Regional workflow the user says works well, including interaction), `tests/manual generation results/` (a result image and the tags used).
+
+## Where the code lives
+
+| Piece | File |
+|-------|------|
+| Params (`MultiCharacterParams`, `all_loras()`) | `src-tauri/src/comfyui/types.rs` |
+| Graph, validation | `src-tauri/src/templates/multichar.rs`, hooked in `templates/mod.rs` (`validate`, early return in `build_workflow`) |
+| Node pack install/verify (pinned rev) | `src-tauri/src/comfyui/nodes.rs` (`MULTI_CHARACTER_PACKAGES`, `ensure_/verify_required_multi_character_nodes`, error kind `missing_multi_character_nodes`) |
+| Commands | `commands/api.rs` (`ensure_multi_character_nodes[_inner]`), `commands/workflow.rs`, `lib.rs`, `webserver.rs` (dispatch, staff list, generate arm) |
+| MCP | `mcp/setups.rs` `snapshot()` clears `multi_character` (no MCP tool yet) |
+| Store | `src/lib/stores/generation.svelte.ts` (`multiCharacter*`, `multiCharacterParams()`, `restoreMultiCharacter()`) |
+| UI | `src/lib/components/generation/MultiCharacterSection.svelte`, registered in `GenerationPage.svelte` |
+| Metadata | `src/App.svelte` writes/restores `mooshie_multi_character` |
+| i18n | `generation.multi_character.*`, all 12 locales |
+
+## How the graph works
+
+`PrimitiveStringMultiline x2 -> RSMultiCharacterPrompt -> [RSMultiCharacterLoRA] -> RSMultiCharacterPosition -> RSMultiCharacterFinalize -> RSMultiCharacterSampler -> finish_workflow`.
+
+- Pack: `raspie10032/ComfyUI_RS_MultiCharacter_Sampler`, pinned `d62788806d2a95877a0af9e976076fb628784b51`, GPL-3.0, alpha, changes almost daily. Bump the pin deliberately.
+- Prompt, LoRA and Position nodes require **all ten slots** (`characterN_enable/_kind`, `_lora/_lora_strength/_lora_clip_strength`, `_geometry/_x/_y/_width/_height`). Character prompts must be STRING connections.
+- The sampler decodes the image itself; `finish_workflow` still runs upscale/facefix/segment after it and needs a positive and negative, so two plain `CLIPTextEncode` nodes are added (nothing else connects to them).
+- TeaCache is forced off. `autosave` is false (the app saves through `MooshieSaveImage`, which streams over the websocket and writes nothing to disk).
+- Columns: box geometry, character i centre x=(i+.5)/n, y=.5, width 1/n, height 1.0.
+- LoRA mode `precision` (independent prediction per LoRA, about 4x a plain run) vs `normal` (about 1.7x, may drift identity).
+- Sampler tuning the app sets: `initial_spatial_separation` 0.9 to 0.5 and `initial_character_gain` 1.7 to 1.3 (cohesion); `initial_common_prior` 0.05 to 0.8 and `common_after_step3_boost` 0.1 to 0.43 (scene strength, default 0.6 = 0.5/0.3).
+- `share_scene` (default on) appends the main prompt to each character's prompt.
+
+## What is known (evidence, not opinion)
+
+- Two character LoRAs on a plain KSampler: both characters take the first one's look in every seed. The RS graph kept two identities.
+- **Main prompt is nearly ignored by default**: common weight stays at `initial_common_prior` (0.05) for the first 40% of denoising, rising to 1 by 75%. Backgrounds from the main prompt stayed flat or white (0 of 3 seeds). 0.5/0.3 gave an interior on the right in 3 of 3 and the left in 1 of 3; 0.8/0.5 gave 2 of 3 and turned the second character's light hair black once; 0.5/0.3 plus the scene text in each character gave both halves in 3 of 3.
+- **Back view** (character facing away despite `facing viewer`) comes from the LoRA/prompt, not the method: one LoRA alone on a plain KSampler was from behind in 3 of 3 seeds. Negative `from behind, back, facing away` fixes most seeds, not all (a precision run still gave a short-haired back view).
+- **Framing tags are weak**: `cowboy shot` in the main prompt worked for the left character in 3 of 3 seeds, not for the right one (LoRA bias to full body; also true alone). Columns are 512x1024 at 1024x1024, which also pulls to full body.
+- Timings (RTX 3060 12 GB): 1344x768 plain 52 s, normal 82 to 86 s, precision 204 to 210 s. 1024x1024 normal 81 to 93 s, precision 153 to 165 s.
+- Normal mode lost the second character's hair colour in 1 of 3 seeds (earlier test). A step-distillation LoRA leaked style across characters.
+- A LoRA's effect also depends on the seed: in one seed the second character's LoRA barely took.
+- Evidence base is thin: one pair of LoRAs, 2 to 3 seeds, judged by eye. Say so when reporting.
+- Not yet compared: the user's Anima-Regional workflow vs RS on the same characters. Whether it works with per-character LoRAs is **untested** (user: "podemos ver isso depois").
+
+## Alternative to evaluate next: ComfyUI-Anima-Regional (An1X3R, MIT)
+
+Separate Identity and Pose prompts per character, a shared scene prompt, an interaction text compiler, `global_mix_v1`. Depends on Anima Artist Mixer nodes (AnimaArtistPack, AnimaArtistAdapterMixer, AnimaFlowCorrectiveSampler). The user's JSON uses it (hug example, 896x1320, no LoRA nodes). Relevant for the interaction iteration. Open questions: per-character LoRA support, speed, licence of its dependencies.
+
+## Testing safely (how it was done)
+
+- Never touch the user's main install data dir (`~/.local/share/com.mooshieui.desktop`). Use the test data dir `~/mooshie-test2` (own ComfyUI at `~/mooshie-test2/comfyui`, venv at `~/mooshie-test2/venv`, models incl. `anima_baseV10` in `checkpoints/`, VAE, text encoders and gacha LoRAs). Do not touch `.part-*` downloads there.
+- App against it: `MOOSHIEUI_DATA_DIR=$HOME/mooshie-test2`. The AppImage segfaulted on the main data dir (cause unknown), so keep tests in the test dir.
+- Standalone ComfyUI for experiments: `~/mooshie-test2/venv/bin/python main.py --listen 127.0.0.1 --port 18299 --disable-auto-launch --extra-model-paths-config <yaml mapping diffusion_models to checkpoints/>`. Stop it when finished.
+- Reproduce the user's runs exactly from the image: read the PNG `parameters` chunk (SwarmUI-style `sui_image_params` plus `mooshie_extra`) for prompt, negative, sampler, scheduler, steps, cfg, size, seed. Real case: `er_sde`, `sgm_uniform`, 30 steps, CFG 4, 1024x1024.
+- Vary the seed between runs: ComfyUI caches identical graphs and a repeat reports a fake 2 s.
+- Python stdout is buffered when redirected; use `python -u`. Pillow lives in the test venv, not system Python.
+- Do not write background waiters with `pgrep -f "<pattern>"` where the pattern is in the waiter's own command line: it matches itself and never ends. Run the work with `run_in_background` and use the completion notification.
+- Do not kill the user's processes (a ComfyUI from the main install may be on 8188).
+
+## Build and check (Linux, Linuxbrew)
+
+Put brew's node/cargo/rust/patchelf first via a dir of symlinks, then `/usr/local/bin:/usr/bin:/bin` (brew `pkg-config` breaks the AppImage GTK plugin; system Node 18 is too old, `npm run tauri dev` fails with `styleText`). Checks for any change here:
+
+```bash
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo test --manifest-path src-tauri/Cargo.toml          # ~1200 pass, 8 ignored
+cargo check --manifest-path src-tauri/Cargo.toml --no-default-features --features server
+cargo clippy --manifest-path src-tauri/Cargo.toml        # look for multichar/setups/types
+npx svelte-check --threshold error && npm run build
+node scripts/check-i18n-parity.mjs                        # every key in all 12 locales
+```
+
+## Rules for changes
+
+- Adding a field: Rust `types.rs` with a `serde(default)` (old saved settings), TS type, store state + load/save + `multiCharacterParams()`, `restoreMultiCharacter()`, UI, i18n x12, `setups::snapshot` if per image, tests. Fix the `MultiCharacterParams` literals in `multichar.rs` and `mcp/setups.rs` tests.
+- Keep `validate()` rejecting what is unsupported (batch>1, ControlNet, style transfer/ref, regional prompts, prompt scheduling, pause/continue) instead of silently dropping it.
+- Decide whether MCP must follow and say so (see `docs/MCP.md`).
+- Project rules still apply: no `Co-Authored-By`, owner author `Mooshieblob <blob@mooshieblob.com>`, no `claude/` branches, no em dashes in text posted as the user. The user does not want commits unless asked.
+- Untracked files `.ai-jail`, `apply.py`, `jail.toml`, `run_jailed.sh` belong to the user's sandbox, not to the project.
+
+## Known gaps / backlog
+
+- UI not exercised in the running app beyond the user's first session; mobile layout, LAN server, gallery remix and metadata restore are only built and type-checked.
+- Per-character LoRAs are not applied in upscale/facefix passes; prompt chunks/wildcards are not expanded in character prompts; `collectPrefs` sync not updated.
+- No positioning UI (fixed left/right columns); no framing control per character; no identity/pose split per character; no interaction.
+- Licensing review of the RS pack (GPL-3.0 plus further licences) before any release; the user said they would look at licences after tests.
+- Docker image does not pre-install the pack; remote ComfyUI is only checked, never cloned.
+
+## Knowledge log (append, newest last; keep entries short, with evidence)
+
+- 2026-10: first iteration built and integrated; user trial showed three problems (framing, back view, global prompt ignored). Causes found as above; added scene strength, shared scene, metadata recording and a back-view tip. Precision check on the user's seed: interior backgrounds in 2 of 2, one back view remained.

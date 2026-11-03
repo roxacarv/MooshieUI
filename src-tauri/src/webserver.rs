@@ -605,6 +605,7 @@ const MODERATOR_COMMANDS: &[&str] = &[
     "install_rife",
     "install_h3_turbo",
     "install_h3_teacache",
+    "ensure_multi_character_nodes",
     "install_h3_vdn",
     "install_h3_upscaler",
     "delete_model_file",
@@ -3463,13 +3464,22 @@ async fn dispatch_command(
             {
                 // Skipped for a remote ComfyUI, whose LoRAs live on that server.
                 let config = state.config.read().await;
-                crate::commands::api::validate_generation_loras(&config, &params.loras)
+                crate::commands::api::validate_generation_loras(&config, &params.all_loras())
                     .map_err(|e| e.to_string())?;
             }
             // The MCP server acts as the owner, so only the owner's runs
             // become setups it can reuse.
             if username.is_none() {
                 crate::mcp::setups::remember(&params);
+            }
+            // Same on-demand-pack check as the Tauri `generate` command.
+            if crate::templates::multichar::active(&params) {
+                let base_url = state.base_url().await;
+                crate::comfyui::nodes::verify_required_multi_character_nodes(
+                    &state.http_client,
+                    &base_url,
+                )
+                .await?;
             }
             // Mirrors the same check in the Tauri `generate` command: catches a
             // missing MiniMax H3 node before submission instead of surfacing
@@ -5528,6 +5538,13 @@ async fn dispatch_command(
                 emit("error", e, true);
             }
             result.map(|_| serde_json::json!(null))
+        }
+
+        "ensure_multi_character_nodes" => {
+            crate::commands::api::ensure_multi_character_nodes_inner(&state)
+                .await
+                .map(|loaded| serde_json::json!(loaded))
+                .map_err(|e| e.to_string())
         }
 
         // --- Config extras ---
