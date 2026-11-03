@@ -3456,6 +3456,8 @@ async fn dispatch_command(
                 let config = state.config.read().await;
                 crate::commands::api::validate_generation_loras(&config, &params.all_loras())
                     .map_err(|e| e.to_string())?;
+                crate::commands::api::validate_multi_character_loras(&config, &params)
+                    .map_err(|e| e.to_string())?;
             }
             // The MCP server acts as the owner, so only the owner's runs
             // become setups it can reuse.
@@ -5509,6 +5511,14 @@ async fn dispatch_command(
                 emit("error", e, true);
             }
             result.map(|_| serde_json::json!(null))
+        }
+
+        "lora_changes_text_adapter" => {
+            let filename = args["filename"].as_str().unwrap_or("").to_string();
+            crate::commands::api::lora_changes_text_adapter_inner(&state, &filename)
+                .await
+                .map(|changes| serde_json::json!(changes))
+                .map_err(|e| e.to_string())
         }
 
         "ensure_multi_character_nodes" => {

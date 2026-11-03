@@ -151,6 +151,19 @@ back view even with the negative.
 - ComfyUI must be running a version that supports the Anima architecture and
   `PrimitiveStringMultiline` (tested on 0.41.1).
 
+## LoRAs are optional
+
+Characters the model already knows (for example `yor briar`, `uzaki tsuki`) come
+out right from their tag alone, so a LoRA per character is optional and meant
+for characters the model does not know. The Characters panel says so.
+
+A LoRA that carries Anima text adapter weights (its safetensors header lists
+`adapter` keys; `Sysdeep Yor` is one) cannot be kept on one character: the
+sampler refuses it. The panel warns as soon as such a LoRA is picked, and a
+generation with it is refused with a message that says to use it in the main
+LoRA list or to describe the character by its tag. The check reads the file
+header, so it only runs for a ComfyUI the app launched itself.
+
 ## Next steps
 
 - Compare against `ComfyUI-Anima-Regional` (MIT), using the vanilla workflow in

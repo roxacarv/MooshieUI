@@ -4821,6 +4821,8 @@ const fr: Record<string, string> = {
   "generation.multi_character.share_scene": "Répéter le prompt principal dans chaque personnage",
   "generation.multi_character.share_scene_hint": "Donne aux deux moitiés le même décor pour que l'arrière-plan corresponde. Désactivez si les personnages ne doivent pas partager les tags du prompt principal.",
   "generation.multi_character.back_view_tip": "Si un personnage tourne le dos, ajoutez from behind, back, facing away au prompt négatif.",
+  "generation.multi_character.known_character_tip": "Les personnages célèbres n'ont en général pas besoin de LoRA : leur tag suffit (par exemple yor briar, uzaki tsuki). La LoRA est facultative, pour les personnages que le modèle ne connaît pas.",
+  "generation.multi_character.lora_adapter_warning": "Cette LoRA modifie l'adaptateur de texte d'Anima ; elle ne peut donc pas rester sur un seul personnage et la génération sera refusée. Retirez-la ici et utilisez-la dans la liste principale de LoRA, ou décrivez le personnage par son tag.",
   "generation.multi_character.nodes_installing": "Installation des nœuds multi-personnages...",
   "generation.multi_character.nodes_restarting": "Redémarrage de ComfyUI pour les charger...",
   "generation.multi_character.nodes_missing": "Les nœuds multi-personnages ne sont pas chargés dans ComfyUI.",

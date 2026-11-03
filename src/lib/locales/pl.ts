@@ -4834,6 +4834,8 @@ const pl: Record<string, string> = {
   "generation.multi_character.share_scene": "Powtórz główny prompt w każdej postaci",
   "generation.multi_character.share_scene_hint": "Daje obu połowom to samo otoczenie, żeby tło pasowało. Wyłącz, jeśli postacie nie mają dzielić tagów głównego promptu.",
   "generation.multi_character.back_view_tip": "Jeśli postać odwraca się plecami, dodaj from behind, back, facing away do promptu negatywnego.",
+  "generation.multi_character.known_character_tip": "Znane postacie zwykle nie wymagają LoRA: wystarczy ich tag (na przykład yor briar, uzaki tsuki). LoRA jest opcjonalna, dla postaci, których model nie zna.",
+  "generation.multi_character.lora_adapter_warning": "Ta LoRA zmienia adapter tekstu Anima, więc nie można jej ograniczyć do jednej postaci i generowanie zostanie odrzucone. Usuń ją tutaj i użyj w głównej liście LoRA albo opisz postać jej tagiem.",
   "generation.multi_character.nodes_installing": "Instalowanie węzłów wielu postaci...",
   "generation.multi_character.nodes_restarting": "Restartowanie ComfyUI, aby je załadować...",
   "generation.multi_character.nodes_missing": "Węzły wielu postaci nie są załadowane w ComfyUI.",

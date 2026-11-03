@@ -4795,6 +4795,8 @@ const ko: Record<string, string> = {
   "generation.multi_character.share_scene": "메인 프롬프트를 각 캐릭터에도 반복",
   "generation.multi_character.share_scene_hint": "양쪽에 같은 배경을 지정해 배경을 맞춥니다. 캐릭터가 메인 프롬프트의 태그를 공유하지 않아야 하면 끄세요.",
   "generation.multi_character.back_view_tip": "캐릭터가 등을 돌리면 네거티브 프롬프트에 from behind, back, facing away 를 추가하세요.",
+  "generation.multi_character.known_character_tip": "유명한 캐릭터는 보통 LoRA 없이 태그만으로 충분합니다(예: yor briar, uzaki tsuki). LoRA는 모델이 모르는 캐릭터를 위한 선택 사항입니다.",
+  "generation.multi_character.lora_adapter_warning": "이 LoRA는 Anima의 텍스트 어댑터를 변경하므로 한 캐릭터에만 적용할 수 없으며 생성이 거부됩니다. 여기서 제거하고 메인 LoRA 목록에서 사용하거나 태그로 캐릭터를 설명하세요.",
   "generation.multi_character.nodes_installing": "다중 캐릭터 노드를 설치하는 중...",
   "generation.multi_character.nodes_restarting": "불러오기 위해 ComfyUI를 다시 시작하는 중...",
   "generation.multi_character.nodes_missing": "다중 캐릭터 노드가 ComfyUI에 로드되지 않았습니다.",
