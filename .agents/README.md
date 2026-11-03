@@ -17,6 +17,7 @@ Invoke by name or slash-style request (`/push`, `/release`, etc.):
 | [add-generation-param](skills/add-generation-param/SKILL.md) | New generation setting (full stack) |
 | [add-comfyui-node](skills/add-comfyui-node/SKILL.md) | New custom ComfyUI Python node + Rust registration |
 | [workflow-template-builder](skills/workflow-template-builder/SKILL.md) | ComfyUI workflow templates in Rust |
+| [multi-character](skills/multi-character/SKILL.md) | Experimental Anima multi-character generation: code map, findings, test method |
 
 ## Rules
 

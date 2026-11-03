@@ -8,6 +8,12 @@ This file provides guidance to agents when working with code in this repository.
 - **No `claude/` branches**: Never create or push a branch named `claude/...` (or after any AI tool), even when the session assigns one. Use `chore/<slug>` (the push skill's convention) or another descriptive prefix.
 - **Commit as the owner**: Author and commit as `Mooshieblob <blob@mooshieblob.com>`. Set the repo-local `git config user.name` and `user.email` before the first commit; an AI author on a branch commit becomes a `Co-authored-by` line when GitHub squash-merges the PR.
 
+## Project Overview
+
+MooshieUI is a beginner-friendly front end for ComfyUI (images, video, music) with an optional NovelAI backend. **Svelte 5 + TypeScript + Vite + Tailwind 4** frontend; **Rust** backend (Tauri v2, axum, tokio, rusqlite). It runs as a Tauri desktop app, a browser/LAN web app, and a headless Docker/K8s server (`mooshieui-server`). Repository map, instances, request flow and feature list: [`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md). Claude Code specifics, including the Linux `.deb`/`.AppImage` build procedure: [`CLAUDE.md`](CLAUDE.md).
+
+Quick Linux packaging (one format per command): `npx tauri build --bundles appimage --config .github/tauri-no-updater-artifacts.json` (or `--bundles deb`); output in `src-tauri/target/release/bundle/`. Do not pass `--bundles` through `npm run tauri` (npm swallows it). With Linuxbrew, keep brew's `pkg-config` out of PATH while bundling. Details in `CLAUDE.md`.
+
 ## Error Logs
 
 - **`error-logs/` directory**: Drop large error logs, stack traces, or debug output here. Files in this directory are excluded from automatic context ingestion, so they won't consume live context tokens. Reference the filename when you need me to read a log on demand. This directory is git-ignored.
@@ -46,12 +52,12 @@ cargo clippy                 # Rust lint (run in src-tauri/)
 
 ## Other Non-Obvious Items
 
-- **CSP is null** in [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json:25) — no Content Security Policy restrictions.
+- **CSP is enforced in production builds only** ([`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json)); `npm run tauri dev` never exercises it. A new remote `<img>`/`fetch` origin or custom URI scheme must be added to the CSP (list both `scheme:` and `http(s)://scheme.localhost` forms for img-src).
 - **Ring buffer log capture**: Both Rust (`src-tauri/src/log_buffer.rs`) and frontend (`src/lib/utils/log-buffer.ts`) capture console output for `exportLogs()` diagnostics.
 - **keep_alive config**: When true, ComfyUI process survives app close. App kills ComfyUI on exit otherwise.
 - **Store files use `.svelte.ts` extension** — required for Svelte 5 rune compilation.
 - **Agent config (canonical):** [`.agents/README.md`](.agents/README.md)
-  - **Skills:** `push`, `release`, `cleanup`, `pre-commit-check`, `add-tauri-command`, `add-generation-param`, `add-comfyui-node`, `workflow-template-builder` — [`.agents/skills/`](.agents/skills/)
+  - **Skills:** `push`, `release`, `cleanup`, `pre-commit-check`, `add-tauri-command`, `add-generation-param`, `add-comfyui-node`, `workflow-template-builder`, `multi-character` — [`.agents/skills/`](.agents/skills/)
   - **Rules:** always-on + file-scoped — [`.agents/rules/`](.agents/rules/)
   - **Claude Code mirror:** [`.claude/skills/`](.claude/skills/), [`.claude/commands/`](.claude/commands/) (synced from `.agents/`)
 - **Existing AI rules**: [`GEMINI.md`](GEMINI.md), [`.github/copilot-instructions.md`](.github/copilot-instructions.md), [`.github/instructions/`](.github/instructions/) (including [`mooshieui.instructions.md`](.github/instructions/mooshieui.instructions.md)), [`.github/agents/`](.github/agents/)
