@@ -9,6 +9,7 @@ Documentation for the current implementation, with music and connection updates 
 | [MCP.md](MCP.md) | The opt-in local MCP server for AI assistants: setup, tools, generation setups and connecting clients |
 | [METADATA_CARRIERS.md](METADATA_CARRIERS.md) | Where generation metadata lives per output format, and what survives |
 | [MULTI_CHARACTER.md](MULTI_CHARACTER.md) | Anima multi-character generation: separate characters and LoRAs, how the workflow is built, install, measurements and gaps |
+| [MULTI_CHARACTER_ROADMAP.md](MULTI_CHARACTER_ROADMAP.md) | Ordered iterations for multi-character: placement canvas, interaction, per-character controls, more characters, release readiness |
 | [OUTPAINTING_NOTES.md](OUTPAINTING_NOTES.md) | Image extension (outpainting): what the app has, why inpainting cannot extend yet, what a feature would need; not started |
 | [NOVELAI.md](NOVELAI.md) | NovelAI architecture, personal keys, face detailing, local post-processing and historical test notes |
 | [RANDOM_PROMPTS.md](RANDOM_PROMPTS.md) | Seeded alternation, multiple choices, weights, nesting and escapes |
