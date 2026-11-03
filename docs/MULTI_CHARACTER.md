@@ -163,7 +163,8 @@ before. The backend refuses boxes smaller than 0.1 or leaving the image.
 "Also say the position in words" appends `left side` or `right side` (by box
 centre; nothing in the middle third) to that character's prompt, because a box
 is a strong hint, not a rule. The layout is saved with the image metadata and
-restored on remix.
+restored on remix. In the owner's own use, placement held in every test with no
+leakage between characters, also with an extra global (artist) LoRA.
 
 ## Status after the second trial
 
