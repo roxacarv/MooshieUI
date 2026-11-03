@@ -1336,6 +1336,15 @@ export async function ensureMultiCharacterNodes(): Promise<boolean> {
   return ipcInvoke("ensure_multi_character_nodes", {});
 }
 
+/**
+ * Whether a LoRA changes Anima's text adapter, which the multi-character
+ * sampler cannot keep on one character. False when unsure (remote server,
+ * file not found).
+ */
+export async function loraChangesTextAdapter(filename: string): Promise<boolean> {
+  return ipcInvoke("lora_changes_text_adapter", { filename });
+}
+
 export async function installPipPackage(packageName: string): Promise<void> {
   return ipcInvoke("install_pip_package", { package: packageName });
 }

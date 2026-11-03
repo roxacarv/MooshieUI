@@ -714,6 +714,7 @@ pub fn run() {
             commands::api::is_h3_teacache_installed,
             commands::api::install_h3_teacache,
             commands::api::ensure_multi_character_nodes,
+            commands::api::lora_changes_text_adapter,
             commands::api::get_h3_vdn_status,
             commands::api::install_h3_vdn,
             commands::api::install_pip_package,

@@ -7556,6 +7556,150 @@ pub(crate) fn validate_generation_loras(
     )
 }
 
+/// Whether a safetensors header lists weights for Anima's text adapter. The
+/// multi-character sampler cannot keep such a LoRA on one character, because
+/// the adapter runs once for the whole prompt before sampling starts.
+pub(crate) fn header_has_text_adapter(header: &Value) -> bool {
+    header
+        .as_object()
+        .map(|map| {
+            map.keys()
+                .any(|key| key != "__metadata__" && key.to_ascii_lowercase().contains("adapter"))
+        })
+        .unwrap_or(false)
+}
+
+/// Read just the header of a `.safetensors` file and report
+/// [`header_has_text_adapter`]. Other formats report `false`.
+pub(crate) fn lora_file_changes_text_adapter(path: &std::path::Path) -> Result<bool, AppError> {
+    let is_safetensors = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("safetensors"))
+        .unwrap_or(false);
+    if !is_safetensors {
+        return Ok(false);
+    }
+    let mut file = std::fs::File::open(path)?;
+    let mut size_buf = [0u8; 8];
+    file.read_exact(&mut size_buf)?;
+    let header_size = u64::from_le_bytes(size_buf) as usize;
+    if header_size > 100 * 1024 * 1024 {
+        return Err(AppError::Other("Safetensors header too large".into()));
+    }
+    let mut header_buf = vec![0u8; header_size];
+    file.read_exact(&mut header_buf)?;
+    let header: Value = serde_json::from_slice(&header_buf)?;
+    Ok(header_has_text_adapter(&header))
+}
+
+/// Refuse a multi-character request whose per-character LoRA carries text
+/// adapter weights, with a message that says what to do instead. Only checked
+/// for a local ComfyUI, since a remote server's files are not readable here.
+pub(crate) fn validate_multi_character_loras(
+    config: &crate::config::AppConfig,
+    params: &crate::comfyui::types::GenerationParams,
+) -> Result<(), AppError> {
+    if !generation_models_are_local(config) || !crate::templates::multichar::active(params) {
+        return Ok(());
+    }
+    let Some(multi) = params.multi_character.as_ref() else {
+        return Ok(());
+    };
+    for (index, character) in multi.characters.iter().enumerate() {
+        let Some(lora) = character.lora.as_ref() else {
+            continue;
+        };
+        let Some(path) = resolve_model_path(
+            &config.comfyui_path,
+            config.extra_model_paths.as_deref(),
+            "loras",
+            lora.name.trim(),
+        ) else {
+            continue;
+        };
+        if lora_file_changes_text_adapter(&path).unwrap_or(false) {
+            return Err(AppError::InvalidWorkflow(format!(
+                "Character {}: the LoRA '{}' changes Anima's text adapter, so it cannot be kept on one character. Remove it from the character and use it in the main LoRA list, or describe the character with its tag instead.",
+                index + 1,
+                lora.name
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// Whether a LoRA file changes Anima's text adapter (see
+/// [`header_has_text_adapter`]). `false` for a remote server or a file that is
+/// not found, so the Characters panel only warns when it is sure.
+pub async fn lora_changes_text_adapter_inner(
+    state: &AppState,
+    filename: &str,
+) -> Result<bool, AppError> {
+    let (comfyui_path, extra_model_paths, local) = {
+        let config = state.config.read().await;
+        (
+            config.comfyui_path.clone(),
+            config.extra_model_paths.clone(),
+            generation_models_are_local(&config),
+        )
+    };
+    if !local || filename.trim().is_empty() {
+        return Ok(false);
+    }
+    let Some(path) = resolve_model_path(
+        &comfyui_path,
+        extra_model_paths.as_deref(),
+        "loras",
+        filename.trim(),
+    ) else {
+        return Ok(false);
+    };
+    tokio::task::spawn_blocking(move || lora_file_changes_text_adapter(&path).unwrap_or(false))
+        .await
+        .map_err(|e| AppError::Other(format!("LoRA check failed: {}", e)))
+}
+
+#[cfg(feature = "desktop")]
+#[tauri::command]
+pub async fn lora_changes_text_adapter(
+    state: State<'_, Arc<AppState>>,
+    filename: String,
+) -> Result<bool, AppError> {
+    lora_changes_text_adapter_inner(state.inner(), &filename).await
+}
+
+#[cfg(test)]
+mod text_adapter_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn header_with_adapter_weights_is_flagged() {
+        let header = json!({
+            "__metadata__": {"adapter_note": "ignored"},
+            "diffusion_model.llm_adapter.blocks.0.lora_A.weight": {},
+            "diffusion_model.blocks.0.attn.lora_A.weight": {}
+        });
+        assert!(header_has_text_adapter(&header));
+    }
+
+    #[test]
+    fn plain_block_lora_and_metadata_are_not_flagged() {
+        let header = json!({
+            "__metadata__": {"adapter_note": "x"},
+            "diffusion_model.blocks.0.attn.lora_A.weight": {}
+        });
+        assert!(!header_has_text_adapter(&header));
+        assert!(!header_has_text_adapter(&json!([])));
+    }
+
+    #[test]
+    fn non_safetensors_files_are_not_read() {
+        assert!(!lora_file_changes_text_adapter(std::path::Path::new("x.pt")).unwrap());
+    }
+}
+
 #[cfg(test)]
 mod generation_lora_validation_tests {
     use super::*;

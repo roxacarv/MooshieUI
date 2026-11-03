@@ -48,6 +48,7 @@ pub async fn generate(
     let models_are_local = {
         let config = state.config.read().await;
         crate::commands::api::validate_generation_loras(&config, &params.all_loras())?;
+        crate::commands::api::validate_multi_character_loras(&config, &params)?;
         crate::commands::api::generation_models_are_local(&config)
     };
 

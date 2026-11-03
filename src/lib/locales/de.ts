@@ -4864,6 +4864,8 @@ const de: Record<string, string> = {
   "generation.multi_character.share_scene": "Hauptprompt in jedem Charakter wiederholen",
   "generation.multi_character.share_scene_hint": "Gibt beiden Hälften dieselbe Umgebung, damit der Hintergrund passt. Ausschalten, wenn die Charaktere die Tags des Hauptprompts nicht teilen sollen.",
   "generation.multi_character.back_view_tip": "Wenn sich ein Charakter vom Betrachter abwendet, füge from behind, back, facing away zum negativen Prompt hinzu.",
+  "generation.multi_character.known_character_tip": "Bekannte Figuren brauchen meist keine LoRA: ihr Tag genügt (zum Beispiel yor briar, uzaki tsuki). Eine LoRA ist optional, für Figuren, die das Modell nicht kennt.",
+  "generation.multi_character.lora_adapter_warning": "Diese LoRA verändert den Text-Adapter von Anima und kann daher nicht auf eine Figur beschränkt werden; die Generierung wird abgelehnt. Entferne sie hier und nutze sie in der Haupt-LoRA-Liste oder beschreibe die Figur mit ihrem Tag.",
   "generation.multi_character.nodes_installing": "Multi-Charakter-Nodes werden installiert...",
   "generation.multi_character.nodes_restarting": "ComfyUI wird neu gestartet, um sie zu laden...",
   "generation.multi_character.nodes_missing": "Die Multi-Charakter-Nodes sind in ComfyUI nicht geladen.",

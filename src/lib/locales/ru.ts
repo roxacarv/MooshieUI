@@ -4862,6 +4862,8 @@ const ru: Record<string, string> = {
   "generation.multi_character.share_scene": "Повторять основной промпт у каждого персонажа",
   "generation.multi_character.share_scene_hint": "Задаёт обеим половинам одно окружение, чтобы фон совпадал. Отключите, если персонажи не должны делить теги основного промпта.",
   "generation.multi_character.back_view_tip": "Если персонаж отвернулся от зрителя, добавьте from behind, back, facing away в негативный промпт.",
+  "generation.multi_character.known_character_tip": "Известным персонажам обычно не нужна LoRA: достаточно тега (например, yor briar, uzaki tsuki). LoRA необязательна и нужна для персонажей, которых модель не знает.",
+  "generation.multi_character.lora_adapter_warning": "Эта LoRA изменяет текстовый адаптер Anima, поэтому её нельзя ограничить одним персонажем, и генерация будет отклонена. Уберите её здесь и используйте в основном списке LoRA или опишите персонажа тегом.",
   "generation.multi_character.nodes_installing": "Установка нод для нескольких персонажей...",
   "generation.multi_character.nodes_restarting": "Перезапуск ComfyUI для их загрузки...",
   "generation.multi_character.nodes_missing": "Ноды для нескольких персонажей не загружены в ComfyUI.",

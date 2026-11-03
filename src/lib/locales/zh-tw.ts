@@ -4862,6 +4862,8 @@ const zhTw: Record<string, string> = {
   "generation.multi_character.share_scene": "在每個角色中重複主提示詞",
   "generation.multi_character.share_scene_hint": "讓兩側使用相同的環境，使背景一致。如果角色不應共用主提示詞的標籤，請關閉。",
   "generation.multi_character.back_view_tip": "如果角色背對畫面，請在負面提示詞中加入 from behind, back, facing away。",
+  "generation.multi_character.known_character_tip": "知名角色通常不需要 LoRA，使用標籤即可（例如 yor briar、uzaki tsuki）。LoRA 是選用的，適用於模型不認識的角色。",
+  "generation.multi_character.lora_adapter_warning": "此 LoRA 會修改 Anima 的文字轉接器，因此無法只作用於一個角色，生成將被拒絕。請在此移除它，並在主 LoRA 清單中使用，或用標籤描述該角色。",
   "generation.multi_character.nodes_installing": "正在安裝多角色節點...",
   "generation.multi_character.nodes_restarting": "正在重新啟動 ComfyUI 以載入它們...",
   "generation.multi_character.nodes_missing": "ComfyUI 中未載入多角色節點。",

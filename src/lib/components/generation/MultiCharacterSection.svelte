@@ -5,7 +5,7 @@
   import { connection } from "../../stores/connection.svelte.js";
   import { progress } from "../../stores/progress.svelte.js";
   import { locale } from "../../stores/locale.svelte.js";
-  import { checkNodeAvailable, ensureMultiCharacterNodes } from "../../utils/api.js";
+  import { checkNodeAvailable, ensureMultiCharacterNodes, loraChangesTextAdapter } from "../../utils/api.js";
   import { restartComfyuiAndWait } from "../../utils/comfyuiRestart.js";
 
   /** The sampler node the whole workflow hangs off (see MULTI_CHARACTER_PACKAGES). */
@@ -17,7 +17,23 @@
   let busyMessage = $state("");
   let error = $state<string | null>(null);
 
+  /** LoRA file -> whether it changes Anima's text adapter (cannot be kept per character). */
+  let adapterLoras = $state<Record<string, boolean>>({});
+
   const characters = $derived(generation.multiCharacters);
+
+  $effect(() => {
+    for (const slot of characters) {
+      const name = slot.loraName;
+      if (!name || name in adapterLoras) continue;
+      adapterLoras[name] = false;
+      void loraChangesTextAdapter(name)
+        .then((changes) => {
+          adapterLoras[name] = changes;
+        })
+        .catch(() => {});
+    }
+  });
   const loraModeOptions = $derived([
     { value: "precision" as const, label: locale.t("generation.multi_character.quality_precision") },
     { value: "normal" as const, label: locale.t("generation.multi_character.quality_normal") },
@@ -133,6 +149,7 @@
 
   {#if generation.multiCharacterEnabled}
     <p class="text-[11px] text-neutral-500">{locale.t("generation.multi_character.intro")}</p>
+    <p class="text-[11px] text-neutral-500">{locale.t("generation.multi_character.known_character_tip")}</p>
 
     {#if nodesReady === false && !busy}
       <div class="rounded-lg border border-amber-600/30 bg-amber-600/10 px-3 py-2 text-[11px] text-amber-300">
@@ -183,6 +200,12 @@
             {/each}
           </select>
         </div>
+
+        {#if slot.loraName && adapterLoras[slot.loraName]}
+          <p class="rounded-lg border border-amber-600/30 bg-amber-600/10 px-2.5 py-1.5 text-[11px] text-amber-300">
+            {locale.t("generation.multi_character.lora_adapter_warning")}
+          </p>
+        {/if}
 
         {#if slot.loraName}
           <div class="flex items-center gap-2">

@@ -4887,6 +4887,8 @@ const ja: Record<string, string> = {
   "generation.multi_character.share_scene": "メインプロンプトを各キャラクターにも繰り返す",
   "generation.multi_character.share_scene_hint": "両側に同じ場所を指定して背景を揃えます。キャラクターにメインプロンプトのタグを共有させたくない場合はオフにしてください。",
   "generation.multi_character.back_view_tip": "キャラクターが後ろを向く場合は、ネガティブプロンプトに from behind, back, facing away を追加してください。",
+  "generation.multi_character.known_character_tip": "有名なキャラクターは通常LoRAなしでタグだけで出せます（例：yor briar、uzaki tsuki）。LoRAは任意で、モデルが知らないキャラクター向けです。",
+  "generation.multi_character.lora_adapter_warning": "このLoRAはAnimaのテキストアダプターを変更するため、1人のキャラクターだけに適用できず、生成は拒否されます。ここから外してメインのLoRA一覧で使うか、タグでキャラクターを指定してください。",
   "generation.multi_character.nodes_installing": "複数キャラクター用ノードをインストール中...",
   "generation.multi_character.nodes_restarting": "読み込むためにComfyUIを再起動しています...",
   "generation.multi_character.nodes_missing": "複数キャラクター用ノードがComfyUIに読み込まれていません。",
