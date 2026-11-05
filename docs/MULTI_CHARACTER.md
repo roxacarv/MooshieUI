@@ -199,6 +199,10 @@ generation with it is refused with a message that says to use it in the main
 LoRA list or to describe the character by its tag. The check reads the file
 header, so it only runs for a ComfyUI the app launched itself.
 
+## After generation
+
+Upscale and refine run the app's normal chain on the finished image, with the global model and the scene plus all character texts as the prompt. At denoise 0.45 and 1.5x this kept both characters' identities in the tests (even with a per-character LoRA); higher denoise and the face fix are untested, so lower the denoise if features start to mix. Chunks (`@[Name]`), wildcards and `{a|b}` work inside the character and interaction fields.
+
 ## Actions between characters
 
 Pick "who" and "does what to whom" under Actions (up to four). The app writes the wording for each side and overlaps the boxes: the acting character gets an active phrase, the other a passive one, and mutual actions give both the same words. Offered: kiss on the cheek, hug, hold hands, lean on the shoulder. Pat on the head and hug from behind were tried and left out (the pat shows a hand without the second character; the hug from behind ignored who was meant to be behind). The wording comes from `ACTIONS` in `src-tauri/src/templates/multichar.rs`; a new action goes in only after a test like the ones in the skill log. NovelAI's `source#` / `target#` text does not work here: the model drew only one character in every test.

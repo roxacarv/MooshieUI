@@ -101,6 +101,9 @@ Goal: two characters that touch or look at each other, reliably.
 
 ### 5. Passes after generation
 
+**Done:** the Characters settings now travel in `collectPrefs` (tabs and server sync had been dropping them), and character and interaction fields resolve `@[Chunk]`, wildcards and `{a|b}` like the main prompt (seeded from the same roll, with the same inline-chunk de-duplication). The upscale/refine pass was measured and needs no per-character version up to denoise 0.45; face fix and higher denoise are not measured.
+
+
 - Per-character LoRAs in the upscale and face fix passes (the pack's detailer
   matches characters to regions; decide whether to use it or to run the app's
   own passes per region).
