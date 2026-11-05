@@ -9,7 +9,7 @@
 use serde_json::{json, Value};
 
 use super::{load_model_nodes, strip_lora_tags, WorkflowResult};
-use crate::comfyui::types::{GenerationParams, MultiCharacterParams};
+use crate::comfyui::types::{CharacterAction, GenerationParams, MultiCharacterParams};
 
 /// Every RS builder node requires all ten slots, whether they are used or not.
 const SLOTS: usize = 10;
@@ -82,6 +82,18 @@ pub fn validate(params: &GenerationParams) -> Result<(), String> {
             }
         }
     }
+    if multi.actions.len() > MAX_ACTIONS {
+        return Err(format!("Use at most {MAX_ACTIONS} actions."));
+    }
+    let count = multi.characters.len();
+    for action in &multi.actions {
+        if action_wording(&action.kind).is_none() {
+            return Err(format!("Unknown action '{}'.", action.kind));
+        }
+        if action.actor >= count || action.receiver >= count || action.actor == action.receiver {
+            return Err("An action needs two different characters from the list.".into());
+        }
+    }
     if !matches!(multi.lora_mode.as_str(), "precision" | "normal") {
         return Err(format!(
             "Unknown multi-character LoRA mode '{}'.",
@@ -152,10 +164,96 @@ fn overlapping_box(index: usize, count: usize) -> (f64, f64, f64, f64) {
     }
 }
 
-/// Whether characters without a box of their own overlap: when they touch, or
-/// while interaction text is set.
+/// Whether characters without a box of their own overlap: when they touch,
+/// while interaction text is set, or when an action joins two of them.
 fn overlaps(multi: &MultiCharacterParams) -> bool {
-    multi.touch || !interaction_text(multi).is_empty()
+    multi.touch || !interaction_text(multi).is_empty() || !multi.actions.is_empty()
+}
+
+/// How many actions one image can carry.
+pub const MAX_ACTIONS: usize = 4;
+
+/// The curated actions. Each has the words for the one who acts and for the one
+/// who receives (`None`: mutual, both get the active words). `{other}` is
+/// replaced by "another girl" and so on (see `referent`). Every wording was
+/// measured with two characters and overlapping boxes (see the skill log); an
+/// action is added here only after such a test.
+struct ActionWording {
+    id: &'static str,
+    active: &'static str,
+    passive: Option<&'static str>,
+}
+
+const ACTIONS: &[ActionWording] = &[
+    ActionWording {
+        id: "kiss_cheek",
+        active: "kissing {other}'s cheek, leaning toward {them}",
+        passive: Some("being kissed on the cheek by {other}"),
+    },
+    ActionWording {
+        id: "hug",
+        active: "hugging each other, arms around each other",
+        passive: None,
+    },
+    ActionWording {
+        id: "hold_hands",
+        active: "holding hands, interlocked fingers, looking at each other",
+        passive: None,
+    },
+    ActionWording {
+        id: "lean_on_shoulder",
+        active: "head on another's shoulder, leaning on {other}",
+        passive: Some("{other}'s head on {their_own} shoulder"),
+    },
+];
+
+fn action_wording(kind: &str) -> Option<&'static ActionWording> {
+    ACTIONS.iter().find(|a| a.id == kind)
+}
+
+/// Who the other person is, from their prompt: `(noun, they, their)`. Only the
+/// girl case was measured; the others are the same sentence with other words.
+fn referent(prompt: &str) -> (&'static str, &'static str, &'static str) {
+    let tags: Vec<String> = prompt
+        .split(',')
+        .map(|t| t.trim().to_ascii_lowercase())
+        .collect();
+    let has = |names: &[&str]| tags.iter().any(|t| names.contains(&t.as_str()));
+    if has(&["1boy", "boy", "male", "male focus"]) {
+        ("another boy", "him", "his")
+    } else if has(&["1girl", "girl", "female"]) {
+        ("another girl", "her", "her")
+    } else {
+        ("another person", "them", "their")
+    }
+}
+
+/// The phrase an action adds to character `index`, or nothing when it does not
+/// involve them. `prompts` are the characters' own texts.
+fn action_phrase(action: &CharacterAction, index: usize, prompts: &[String]) -> Option<String> {
+    let wording = action_wording(&action.kind)?;
+    let (own, other) = if index == action.actor {
+        (action.actor, action.receiver)
+    } else if index == action.receiver {
+        (action.receiver, action.actor)
+    } else {
+        return None;
+    };
+    let template = if index == action.actor || wording.passive.is_none() {
+        wording.active
+    } else {
+        wording.passive?
+    };
+    let (noun, them, their) = referent(prompts.get(other).map_or("", String::as_str));
+    // "her shoulder": the character the phrase is written for.
+    let (_, _, their_own) = referent(prompts.get(own).map_or("", String::as_str));
+    Some(
+        template
+            .replace("{other}", noun)
+            .replace("{them}", them)
+            .replace("{their_own}", their_own)
+            .replace("{their}", their),
+    )
 }
 
 /// What the characters do together, trimmed; empty when not interacting.
@@ -282,6 +380,11 @@ pub fn build(params: &GenerationParams, seed: i64) -> WorkflowResult {
             let mut full = text.clone();
             if !interaction.is_empty() {
                 full = format!("{full}, {interaction}");
+            }
+            for action in &multi.actions {
+                if let Some(phrase) = action_phrase(action, index, &character_prompts) {
+                    full = format!("{full}, {phrase}");
+                }
             }
             if multi.say_position {
                 if let Some(words) = position_words(region_for(multi, index).0) {
@@ -515,6 +618,7 @@ mod tests {
                 say_position: false,
                 interaction: String::new(),
                 touch: false,
+                actions: Vec::new(),
             }),
             ..Default::default()
         }
@@ -980,5 +1084,109 @@ mod tests {
             .map(|n| n["inputs"]["value"].as_str().unwrap().to_string())
             .collect();
         assert!(prompts.iter().all(|t| !t.contains("hugging")));
+    }
+
+    fn actions_params(actions: Vec<CharacterAction>) -> GenerationParams {
+        let mut p = params([None, None]);
+        p.multi_character.as_mut().unwrap().actions = actions;
+        p
+    }
+
+    fn action(kind: &str, actor: usize, receiver: usize) -> CharacterAction {
+        CharacterAction {
+            kind: kind.into(),
+            actor,
+            receiver,
+        }
+    }
+
+    fn column_texts(p: &GenerationParams) -> Vec<String> {
+        let r = build(p, 1);
+        let mut ids: Vec<&String> = r
+            .workflow
+            .iter()
+            .filter(|(_, n)| n["class_type"] == "PrimitiveStringMultiline")
+            .map(|(k, _)| k)
+            .collect();
+        ids.sort_by_key(|k| k.parse::<u32>().unwrap());
+        ids.iter()
+            .map(|k| {
+                r.workflow[*k]["inputs"]["value"]
+                    .as_str()
+                    .unwrap()
+                    .to_string()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_directed_action_writes_active_and_passive_words_and_overlaps() {
+        let p = actions_params(vec![action("kiss_cheek", 0, 1)]);
+        assert_eq!(validate(&p), Ok(()));
+        let texts = column_texts(&p);
+        assert!(
+            texts[0].contains("kissing another girl's cheek, leaning toward her"),
+            "{}",
+            texts[0]
+        );
+        assert!(
+            texts[1].contains("being kissed on the cheek by another girl"),
+            "{}",
+            texts[1]
+        );
+        let r = build(&p, 1);
+        assert_eq!(
+            node(&r, "RSMultiCharacterPosition")["inputs"]["character1_width"],
+            0.65
+        );
+        // Swapping who acts swaps the words.
+        let swapped = column_texts(&actions_params(vec![action("kiss_cheek", 1, 0)]));
+        assert!(swapped[1].contains("kissing another girl's cheek"));
+        assert!(swapped[0].contains("being kissed on the cheek"));
+    }
+
+    #[test]
+    fn a_mutual_action_gives_both_the_same_words() {
+        let texts = column_texts(&actions_params(vec![action("hold_hands", 0, 1)]));
+        assert!(texts[0].contains("holding hands, interlocked fingers"));
+        assert!(texts[1].contains("holding hands, interlocked fingers"));
+    }
+
+    #[test]
+    fn action_words_follow_who_the_other_character_is() {
+        let mut p = actions_params(vec![action("kiss_cheek", 0, 1)]);
+        p.multi_character.as_mut().unwrap().characters[1].prompt = "1boy, short hair".into();
+        let texts = column_texts(&p);
+        assert!(
+            texts[0].contains("kissing another boy's cheek, leaning toward him"),
+            "{}",
+            texts[0]
+        );
+        assert!(
+            texts[1].contains("being kissed on the cheek by another girl"),
+            "{}",
+            texts[1]
+        );
+        let mut p = actions_params(vec![action("lean_on_shoulder", 0, 1)]);
+        p.multi_character.as_mut().unwrap().characters[0].prompt = "someone".into();
+        p.multi_character.as_mut().unwrap().characters[1].prompt = "1girl, red hair".into();
+        let texts = column_texts(&p);
+        assert!(texts[0].contains("leaning on another girl"), "{}", texts[0]);
+        assert!(
+            texts[1].contains("another person's head on her shoulder"),
+            "{}",
+            texts[1]
+        );
+    }
+
+    #[test]
+    fn actions_with_bad_characters_or_kinds_are_refused() {
+        assert!(validate(&actions_params(vec![action("kiss_cheek", 0, 0)])).is_err());
+        assert!(validate(&actions_params(vec![action("kiss_cheek", 0, 2)])).is_err());
+        assert!(validate(&actions_params(vec![action("dance", 0, 1)])).is_err());
+        let many = vec![action("hug", 0, 1); MAX_ACTIONS + 1];
+        assert!(validate(&actions_params(many))
+            .unwrap_err()
+            .contains("at most"));
     }
 }

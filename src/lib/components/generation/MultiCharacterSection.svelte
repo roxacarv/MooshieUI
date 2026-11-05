@@ -9,6 +9,7 @@
   import { restartComfyuiAndWait } from "../../utils/comfyuiRestart.js";
   import CharacterLayoutCanvas from "./CharacterLayoutCanvas.svelte";
   import PromptTextarea from "./PromptTextarea.svelte";
+  import { ACTION_KINDS, MAX_ACTIONS, type CharacterAction } from "../../utils/characterActions.js";
   import { CHARACTER_LOOKS, MAX_CHARACTERS, MIN_CHARACTERS } from "../../utils/characterRegion.js";
 
   /** The sampler node the whole workflow hangs off (see MULTI_CHARACTER_PACKAGES). */
@@ -122,6 +123,32 @@
   function setLoraStrength(index: number, value: number) {
     if (!Number.isFinite(value)) return;
     generation.multiCharacters[index].loraStrength = Math.min(2, Math.max(0, value));
+  }
+
+  function addAction() {
+    if (generation.multiCharacterActions.length >= MAX_ACTIONS) return;
+    const kind = ACTION_KINDS[0].id;
+    generation.multiCharacterActions = [...generation.multiCharacterActions, { kind, actor: 0, receiver: 1 }];
+    generation.saveSettings();
+  }
+
+  function removeAction(index: number) {
+    generation.multiCharacterActions = generation.multiCharacterActions.filter((_, i) => i !== index);
+    generation.saveSettings();
+  }
+
+  function updateAction(index: number, change: Partial<CharacterAction>) {
+    const next = generation.multiCharacterActions.map((a, i) => (i === index ? { ...a, ...change } : a));
+    // The two ends are always different characters: when one is picked to match
+    // the other, move the other end to the character just left.
+    const edited = next[index];
+    if (edited.actor === edited.receiver) {
+      const previous = generation.multiCharacterActions[index];
+      if (change.actor !== undefined) edited.receiver = previous.actor;
+      else edited.actor = previous.receiver;
+    }
+    generation.multiCharacterActions = next;
+    generation.saveSettings();
   }
 
   onMount(() => {
@@ -270,6 +297,60 @@
         })}
       </p>
     {/if}
+
+    <div class="space-y-1.5">
+      <div class="flex items-center justify-between">
+        <span class="text-neutral-500">{locale.t("generation.multi_character.actions")}</span>
+        <button
+          class="text-[11px] text-indigo-400 transition-colors hover:text-indigo-300 disabled:opacity-40"
+          disabled={generation.multiCharacterActions.length >= MAX_ACTIONS}
+          onclick={addAction}
+        >
+          {locale.t("generation.multi_character.action_add")}
+        </button>
+      </div>
+      {#each generation.multiCharacterActions as action, i (i)}
+        {@const mutual = ACTION_KINDS.find((k) => k.id === action.kind)?.mutual ?? false}
+        <div class="flex items-center gap-1.5">
+          <select
+            class="w-16 shrink-0 rounded-lg border border-neutral-700 bg-neutral-800 px-1.5 py-1.5 text-xs text-neutral-100 focus:border-indigo-500 focus:outline-none"
+            value={action.actor}
+            onchange={(e) => updateAction(i, { actor: Number(e.currentTarget.value) })}
+          >
+            {#each characters as _slot, n (n)}
+              <option value={n}>{n + 1}</option>
+            {/each}
+          </select>
+          <select
+            class="min-w-0 flex-1 rounded-lg border border-neutral-700 bg-neutral-800 px-1.5 py-1.5 text-xs text-neutral-100 focus:border-indigo-500 focus:outline-none"
+            value={action.kind}
+            onchange={(e) => updateAction(i, { kind: e.currentTarget.value })}
+          >
+            {#each ACTION_KINDS as kind (kind.id)}
+              <option value={kind.id}>{locale.t(`generation.multi_character.action_${kind.id}`)}</option>
+            {/each}
+          </select>
+          <span class="shrink-0 text-neutral-500" aria-hidden="true">{mutual ? "↔" : "→"}</span>
+          <select
+            class="w-16 shrink-0 rounded-lg border border-neutral-700 bg-neutral-800 px-1.5 py-1.5 text-xs text-neutral-100 focus:border-indigo-500 focus:outline-none"
+            value={action.receiver}
+            onchange={(e) => updateAction(i, { receiver: Number(e.currentTarget.value) })}
+          >
+            {#each characters as _slot, n (n)}
+              <option value={n}>{n + 1}</option>
+            {/each}
+          </select>
+          <button
+            class="shrink-0 px-1 text-neutral-500 transition-colors hover:text-red-400"
+            aria-label={locale.t("generation.multi_character.action_remove")}
+            onclick={() => removeAction(i)}
+          >
+            ×
+          </button>
+        </div>
+      {/each}
+      <p class="text-[11px] text-neutral-500">{locale.t("generation.multi_character.actions_hint")}</p>
+    </div>
 
     <div class="space-y-1.5">
       <div class="text-neutral-500">{locale.t("generation.multi_character.interaction")}</div>

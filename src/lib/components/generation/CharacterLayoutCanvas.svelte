@@ -36,7 +36,9 @@
   function effective(index: number): CharacterRegion {
     return (
       slots[index].region ??
-      (generation.multiCharacterTouch || generation.multiCharacterInteraction.trim()
+      (generation.multiCharacterTouch ||
+      generation.multiCharacterActions.length > 0 ||
+      generation.multiCharacterInteraction.trim()
         ? overlapRegion(index, slots.length)
         : columnRegion(index, slots.length))
     );

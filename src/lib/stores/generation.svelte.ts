@@ -1,3 +1,4 @@
+import { parseActions, type CharacterAction } from "../utils/characterActions.js";
 import { MAX_CHARACTERS, MIN_CHARACTERS, parseRegion, type CharacterRegion } from "../utils/characterRegion.js";
 import { ipcStore, userScopedKey } from "../utils/ipc.js";
 import { triggerSync } from "../utils/syncTrigger.js";
@@ -959,6 +960,8 @@ class GenerationStore {
   multiCharacterSayPosition = $state(false);
   /** Characters without their own box overlap even with no interaction text. */
   multiCharacterTouch = $state(false);
+  /** Directed actions between characters, e.g. 0 kisses 1's cheek. */
+  multiCharacterActions = $state<CharacterAction[]>([]);
   /** What the characters do together; empty means they do not interact. */
   multiCharacterInteraction = $state("");
   // --- Style Reference (IP-Adapter / Flux Redux) ---
@@ -3271,6 +3274,7 @@ class GenerationStore {
     }
     if (typeof saved.multiCharacterInteraction === "string")
       this.multiCharacterInteraction = saved.multiCharacterInteraction;
+    this.multiCharacterActions = parseActions(saved.multiCharacterActions, this.multiCharacters.length);
     if (typeof saved.multiCharacterTouch === "boolean")
       this.multiCharacterTouch = saved.multiCharacterTouch;
     if (typeof saved.multiCharacterSayPosition === "boolean")
@@ -3466,6 +3470,7 @@ class GenerationStore {
         multiCharacterShareScene: this.multiCharacterShareScene,
         multiCharacterSayPosition: this.multiCharacterSayPosition,
         multiCharacterTouch: this.multiCharacterTouch,
+        multiCharacterActions: this.multiCharacterActions,
         multiCharacterInteraction: this.multiCharacterInteraction,
         styleRefEnabled: this.styleRefEnabled,
         styleRefImage: this.styleRefImage,
@@ -4013,6 +4018,7 @@ class GenerationStore {
       share_scene: this.multiCharacterShareScene,
       say_position: this.multiCharacterSayPosition,
       touch: this.multiCharacterTouch,
+      actions: parseActions(this.multiCharacterActions, this.multiCharacters.length),
       interaction: this.multiCharacterInteraction.trim(),
     };
   }
@@ -4022,6 +4028,11 @@ class GenerationStore {
     const target = Math.min(MAX_CHARACTERS, Math.max(MIN_CHARACTERS, Math.round(count)));
     const current = this.multiCharacters;
     if (target === current.length) return;
+    if (target < current.length) {
+      this.multiCharacterActions = this.multiCharacterActions.filter(
+        (a) => a.actor < target && a.receiver < target,
+      );
+    }
     this.multiCharacters =
       target < current.length
         ? current.slice(0, target)
@@ -4065,6 +4076,7 @@ class GenerationStore {
     if (typeof data.share_scene === "boolean") this.multiCharacterShareScene = data.share_scene;
     this.multiCharacterSayPosition = data.say_position === true;
     this.multiCharacterTouch = data.touch === true;
+    this.multiCharacterActions = parseActions(data.actions, this.multiCharacters.length);
     this.multiCharacterInteraction = typeof data.interaction === "string" ? data.interaction : "";
     this.multiCharacterEnabled = true;
     return true;
