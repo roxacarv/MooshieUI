@@ -2,22 +2,21 @@
   import { generation } from "../../stores/generation.svelte.js";
   import { locale } from "../../stores/locale.svelte.js";
   import {
+    CHARACTER_LOOKS,
     GRID_STEP,
+    LAYOUT_PRESETS,
     MIN_SIDE,
     clampRegion,
     columnRegion,
     overlapRegion,
+    presetRegions,
     snap,
     type CharacterRegion,
+    type LayoutPreset,
   } from "../../utils/characterRegion.js";
 
   type Corner = "nw" | "ne" | "sw" | "se";
 
-  /** Per-character look on the canvas; the same order as the cards above it. */
-  const LOOKS = [
-    "border-amber-400 bg-amber-400/20 text-amber-200",
-    "border-sky-400 bg-sky-400/20 text-sky-200",
-  ];
   const CORNERS: { id: Corner; classes: string }[] = [
     { id: "nw", classes: "-left-1.5 -top-1.5 cursor-nwse-resize" },
     { id: "ne", classes: "-right-1.5 -top-1.5 cursor-nesw-resize" },
@@ -128,6 +127,13 @@
     generation.saveSettings();
   }
 
+  /** Lay the characters out in a ready-made arrangement; "row" goes back to the columns. */
+  function applyPreset(kind: LayoutPreset) {
+    const regions = presetRegions(kind, slots.length);
+    regions.forEach((region, i) => (generation.multiCharacters[i].region = region));
+    generation.saveSettings();
+  }
+
   function reset() {
     for (let i = 0; i < slots.length; i++) generation.multiCharacters[i].region = null;
     generation.saveSettings();
@@ -144,9 +150,18 @@
   <div class="flex items-center justify-between">
     <span class="text-neutral-500">{locale.t("generation.multi_character.layout_title")}</span>
     <div class="flex items-center gap-3 text-[11px]">
-      <button class="text-indigo-400 transition-colors hover:text-indigo-300" onclick={swap}>
-        {locale.t("generation.multi_character.layout_swap")}
-      </button>
+      {#each LAYOUT_PRESETS as kind (kind)}
+        {#if kind !== "grid" || slots.length >= 3}
+          <button class="text-indigo-400 transition-colors hover:text-indigo-300" onclick={() => applyPreset(kind)}>
+            {locale.t(`generation.multi_character.preset_${kind}`)}
+          </button>
+        {/if}
+      {/each}
+      {#if slots.length === 2}
+        <button class="text-indigo-400 transition-colors hover:text-indigo-300" onclick={swap}>
+          {locale.t("generation.multi_character.layout_swap")}
+        </button>
+      {/if}
       <button
         class="text-indigo-400 transition-colors hover:text-indigo-300 disabled:opacity-40"
         disabled={isDefault}
@@ -168,7 +183,7 @@
         role="button"
         tabindex="0"
         aria-label={locale.t("generation.multi_character.layout_box", { n: String(index + 1) })}
-        class="absolute cursor-move touch-none rounded border-2 outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 {LOOKS[index % LOOKS.length]}"
+        class="absolute cursor-move touch-none rounded border-2 outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 {CHARACTER_LOOKS[index % CHARACTER_LOOKS.length].box}"
         style="left: {pct(r.x - r.width / 2)}; top: {pct(r.y - r.height / 2)}; width: {pct(r.width)}; height: {pct(r.height)}; z-index: {active === index ? 2 : 1};"
         onpointerdown={(e) => startDrag(e, index, "move")}
         onkeydown={(e) => onKey(e, index)}
