@@ -70,6 +70,14 @@ Goal: two characters that touch or look at each other, reliably.
 
 **Built:** a list of actions (kiss on the cheek, hug, hold hands, lean on the shoulder) between two chosen characters, with measured wording for each side. Pat on the head and hug from behind did not pass. More actions need a test each.
 
+### Explored and not viable (kept so nobody repeats them)
+
+- NovelAI's literal `source#` / `target#` text: the model drew one character only.
+- A text-only "contact zone" slot on the overlap of two boxes: one person in 9 of 9 images, caption without visible effect.
+- The pack's own interaction node presets (delay3 / delay6): no clear gain over overlapping boxes.
+- A per-character negative prompt: not exposed by the pinned pack's builder nodes.
+- Still open: a relation text routed per cell without being an owner caption. It would need a change inside the pack's `box_cross`; no evidence yet that it helps.
+
 ### 3. Per-character controls
 
 **Result:** the per-character negative is not available in the pinned pack (only the deprecated all-in-one prompt node has it), so it is not built. Anything a character should avoid goes in the main negative prompt or is phrased positively in its own prompt. The framing and facing helpers were not built: they would only add words the user can already type.
