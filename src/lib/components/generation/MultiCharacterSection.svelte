@@ -8,6 +8,7 @@
   import { checkNodeAvailable, ensureMultiCharacterNodes, loraChangesTextAdapter } from "../../utils/api.js";
   import { restartComfyuiAndWait } from "../../utils/comfyuiRestart.js";
   import CharacterLayoutCanvas from "./CharacterLayoutCanvas.svelte";
+  import PromptTextarea from "./PromptTextarea.svelte";
   import { CHARACTER_LOOKS, MAX_CHARACTERS, MIN_CHARACTERS } from "../../utils/characterRegion.js";
 
   /** The sampler node the whole workflow hangs off (see MULTI_CHARACTER_PACKAGES). */
@@ -113,10 +114,6 @@
     }
   }
 
-  function setPrompt(index: number, value: string) {
-    generation.multiCharacters[index].prompt = value;
-  }
-
   function setLora(index: number, value: string) {
     generation.multiCharacters[index].loraName = value || null;
     generation.saveSettings();
@@ -187,13 +184,16 @@
           ></span>
         </div>
 
-        <textarea
-          class="h-16 w-full resize-y rounded-lg border border-neutral-700 bg-neutral-800 px-2.5 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-600 focus:border-indigo-500 focus:outline-none"
-          placeholder={locale.t("generation.multi_character.prompt_placeholder")}
-          value={slot.prompt}
-          oninput={(e) => setPrompt(index, e.currentTarget.value)}
-          onchange={() => generation.saveSettings()}
-        ></textarea>
+        <div onfocusout={() => generation.saveSettings()}>
+          <PromptTextarea
+            bind:value={generation.multiCharacters[index].prompt}
+            placeholder={locale.t("generation.multi_character.prompt_placeholder")}
+            rows={3}
+            minHeight="min-h-16"
+            storageKey={`mooshieui.promptHeight.multiCharacter.${index}`}
+            suggestLoraKeywords={true}
+          />
+        </div>
 
         <div class="flex items-center gap-2">
           <span class="w-12 shrink-0 text-neutral-500">{locale.t("generation.multi_character.lora")}</span>
@@ -273,14 +273,16 @@
 
     <div class="space-y-1.5">
       <div class="text-neutral-500">{locale.t("generation.multi_character.interaction")}</div>
-      <input
-        type="text"
-        class="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-2.5 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-600 focus:border-indigo-500 focus:outline-none"
-        placeholder={locale.t("generation.multi_character.interaction_placeholder")}
-        value={generation.multiCharacterInteraction}
-        oninput={(e) => (generation.multiCharacterInteraction = e.currentTarget.value)}
-        onchange={() => generation.saveSettings()}
-      />
+      <div onfocusout={() => generation.saveSettings()}>
+        <PromptTextarea
+          bind:value={generation.multiCharacterInteraction}
+          placeholder={locale.t("generation.multi_character.interaction_placeholder")}
+          rows={1}
+          minHeight="min-h-9"
+          storageKey="mooshieui.promptHeight.multiCharacter.interaction"
+          suggestLoraKeywords={false}
+        />
+      </div>
       <p class="text-[11px] text-neutral-500">{locale.t("generation.multi_character.interaction_hint")}</p>
     </div>
 
