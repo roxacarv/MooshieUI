@@ -73,7 +73,7 @@ const STYLE_TRANSFER_PACKAGES: &[RequiredCustomNodePackage] = &[
 const MULTI_CHARACTER_PACKAGES: &[RequiredCustomNodePackage] = &[RequiredCustomNodePackage {
     name: "ComfyUI_RS_MultiCharacter_Sampler",
     git_url: "https://github.com/raspie10032/ComfyUI_RS_MultiCharacter_Sampler.git",
-    git_rev: "d62788806d2a95877a0af9e976076fb628784b51",
+    git_rev: "721d57ab98e80dc6854d4f49758bc9c456bb925c",
     verify_nodes: &[
         "RSMultiCharacterPrompt",
         "RSMultiCharacterLoRA",

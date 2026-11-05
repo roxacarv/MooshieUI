@@ -62,7 +62,7 @@ does). Generating verifies the five node classes first and answers with an
 actionable error instead of ComfyUI's raw `missing_node_type`.
 
 - Pin: `MULTI_CHARACTER_PACKAGES` in `src-tauri/src/comfyui/nodes.rs`
-  (`d62788806d2a95877a0af9e976076fb628784b51`, the revision this was tested
+  (`721d57ab98e80dc6854d4f49758bc9c456bb925c`, the revision this was tested
   on). The pack is alpha and changes almost daily, so bump it deliberately and
   re-run the checks below.
 - A **remote** ComfyUI has its own nodes: the app only checks, never clones.
