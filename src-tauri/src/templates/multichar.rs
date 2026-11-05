@@ -188,6 +188,13 @@ const COMMON_PRIOR_MAX: f64 = 0.8;
 const COMMON_BOOST_MIN: f64 = 0.1;
 const COMMON_BOOST_MAX: f64 = 0.43;
 
+/// The sampler takes sides that are multiples of 16 from 64 to 4096; the app
+/// allows multiples of 8 (16:9 on 1024 gives 1368 x 768, which it refused).
+/// Snap to the nearest valid side; the picture comes out at most 8 px off.
+fn sampler_side(side: u32) -> u32 {
+    (((side + 8) / 16) * 16).clamp(64, 4096)
+}
+
 fn round4(value: f64) -> f64 {
     (value * 10_000.0).round() / 10_000.0
 }
@@ -388,8 +395,8 @@ pub fn build(params: &GenerationParams, seed: i64) -> WorkflowResult {
                 "character_pipe": [finalize_id, 0],
                 "prompt": common_prompt,
                 "negative_prompt": negative_prompt,
-                "width": params.width,
-                "height": params.height,
+                "width": sampler_side(params.width),
+                "height": sampler_side(params.height),
                 "seed": seed,
                 "steps": params.steps,
                 "cfg": params.cfg,
@@ -926,5 +933,22 @@ mod tests {
         // A box dragged without snapping, centre 0.9625, width 0.075.
         let (x, w) = axis_inside(0.9625, 0.075);
         assert!(x + w / 2.0 <= 1.0 + 1e-9);
+    }
+
+    #[test]
+    fn sides_snap_to_multiples_of_sixteen_for_the_sampler() {
+        assert_eq!(sampler_side(1368), 1376);
+        assert_eq!(sampler_side(1024), 1024);
+        assert_eq!(sampler_side(1360), 1360);
+        assert_eq!(sampler_side(1352), 1360);
+        assert_eq!(sampler_side(8), 64);
+        assert_eq!(sampler_side(5000), 4096);
+        let mut p = params([None, None]);
+        p.width = 1368;
+        let result = build(&p, 1);
+        assert_eq!(
+            node(&result, "RSMultiCharacterSampler")["inputs"]["width"],
+            1376
+        );
     }
 }
