@@ -199,6 +199,10 @@ generation with it is refused with a message that says to use it in the main
 LoRA list or to describe the character by its tag. The check reads the file
 header, so it only runs for a ComfyUI the app launched itself.
 
+## Per-character negative
+
+Not supported. The pinned RS pack's builder nodes take no negative per character; only its deprecated all-in-one prompt node does. Put exclusions in the main negative prompt, or state the wanted trait positively in the character's own prompt. Checked again whenever the pin is bumped.
+
 ## Next steps
 
 - Compare against `ComfyUI-Anima-Regional` (MIT), using the vanilla workflow in

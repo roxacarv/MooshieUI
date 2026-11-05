@@ -68,6 +68,8 @@ Goal: two characters that touch or look at each other, reliably.
 
 ### 3. Per-character controls
 
+**Result:** the per-character negative is not available in the pinned pack (only the deprecated all-in-one prompt node has it), so it is not built. Anything a character should avoid goes in the main negative prompt or is phrased positively in its own prompt. The framing and facing helpers were not built: they would only add words the user can already type.
+
 - Per-character negative prompt, only if the pinned pack supports it (otherwise
   write that down and stop).
 - Per-character framing and facing helpers (the bias seen with the right-hand
