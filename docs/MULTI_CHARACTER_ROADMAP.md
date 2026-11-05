@@ -66,6 +66,10 @@ Goal: two characters that touch or look at each other, reliably.
 - Test: hug, hold hands, back to back, across several seeds; count how often
   contact looks right and how often identities merge.
 
+### 2b. Action picker
+
+**Built:** a list of actions (kiss on the cheek, hug, hold hands, lean on the shoulder) between two chosen characters, with measured wording for each side. Pat on the head and hug from behind did not pass. More actions need a test each.
+
 ### 3. Per-character controls
 
 **Result:** the per-character negative is not available in the pinned pack (only the deprecated all-in-one prompt node has it), so it is not built. Anything a character should avoid goes in the main negative prompt or is phrased positively in its own prompt. The framing and facing helpers were not built: they would only add words the user can already type.

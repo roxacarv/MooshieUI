@@ -199,6 +199,10 @@ generation with it is refused with a message that says to use it in the main
 LoRA list or to describe the character by its tag. The check reads the file
 header, so it only runs for a ComfyUI the app launched itself.
 
+## Actions between characters
+
+Pick "who" and "does what to whom" under Actions (up to four). The app writes the wording for each side and overlaps the boxes: the acting character gets an active phrase, the other a passive one, and mutual actions give both the same words. Offered: kiss on the cheek, hug, hold hands, lean on the shoulder. Pat on the head and hug from behind were tried and left out (the pat shows a hand without the second character; the hug from behind ignored who was meant to be behind). The wording comes from `ACTIONS` in `src-tauri/src/templates/multichar.rs`; a new action goes in only after a test like the ones in the skill log. NovelAI's `source#` / `target#` text does not work here: the model drew only one character in every test.
+
 ## More than two characters
 
 Two to six characters. Add or remove them below the cards; the canvas has Row, Grid and Pyramid presets. What measured well: 3 characters at 1536x768 and 4 at 1792x832 (all right, in order, 3 of 3 seeds each). Two things matter: keep group phrases such as `group photo`, `standing side by side` and `3girls` out of the main prompt (they made every character appear twice), and give each character about half its height in width (the panel warns when the image is narrower than 0.5 x count). Five and six characters are not measured. Time without LoRAs stays close to the two-character time; each character LoRA adds a lot in high quality mode.

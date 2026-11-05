@@ -427,6 +427,7 @@ mod tests {
             say_position: false,
             interaction: String::new(),
             touch: false,
+            actions: Vec::new(),
         });
         assert!(snapshot(&p).unwrap().multi_character.is_none());
     }

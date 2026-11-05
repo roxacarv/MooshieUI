@@ -120,6 +120,16 @@ pub struct CharacterRegion {
     pub height: f64,
 }
 
+/// One action between two characters, picked from the curated list in
+/// `templates/multichar.rs` (`kind`). `actor` and `receiver` are zero-based
+/// character positions; for mutual actions (hold hands) the order is irrelevant.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CharacterAction {
+    pub kind: String,
+    pub actor: usize,
+    pub receiver: usize,
+}
+
 /// Settings for the Anima multi-character workflow (RS MultiCharacter Sampler).
 ///
 /// Characters are laid out left to right in the order given. Iteration one is
@@ -162,6 +172,11 @@ pub struct MultiCharacterParams {
     /// "kissing another girl's cheek" and "being kissed on the cheek").
     #[serde(default)]
     pub touch: bool,
+    /// Directed actions between characters ("A kisses B's cheek"). Each one
+    /// writes an active phrase into the actor's prompt and a passive one into
+    /// the receiver's, and makes the boxes overlap.
+    #[serde(default)]
+    pub actions: Vec<CharacterAction>,
 }
 
 fn default_multi_character_lora_mode() -> String {
