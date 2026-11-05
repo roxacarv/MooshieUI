@@ -1,4 +1,4 @@
-import { parseRegion, type CharacterRegion } from "../utils/characterRegion.js";
+import { MAX_CHARACTERS, MIN_CHARACTERS, parseRegion, type CharacterRegion } from "../utils/characterRegion.js";
 import { ipcStore, userScopedKey } from "../utils/ipc.js";
 import { triggerSync } from "../utils/syncTrigger.js";
 import { compileTimeline, isTimelineActive } from "../utils/timelineProvider.js";
@@ -692,11 +692,12 @@ export interface MultiCharacterSlot {
   region: CharacterRegion | null;
 }
 
+function emptyMultiCharacterSlot(): MultiCharacterSlot {
+  return { prompt: "", loraName: null, loraStrength: 1, region: null };
+}
+
 function emptyMultiCharacterSlots(): MultiCharacterSlot[] {
-  return [
-    { prompt: "", loraName: null, loraStrength: 1, region: null },
-    { prompt: "", loraName: null, loraStrength: 1, region: null },
-  ];
+  return [emptyMultiCharacterSlot(), emptyMultiCharacterSlot()];
 }
 
 class GenerationStore {
@@ -3258,7 +3259,7 @@ class GenerationStore {
       this.animaTeacacheEnabled = saved.animaTeacacheEnabled;
     if (saved.multiCharacterEnabled !== undefined)
       this.multiCharacterEnabled = saved.multiCharacterEnabled;
-    if (Array.isArray(saved.multiCharacters) && saved.multiCharacters.length === 2) {
+    if (Array.isArray(saved.multiCharacters) && saved.multiCharacters.length >= MIN_CHARACTERS && saved.multiCharacters.length <= MAX_CHARACTERS) {
       this.multiCharacters = saved.multiCharacters.map((slot: Partial<MultiCharacterSlot>) => ({
         prompt: typeof slot?.prompt === "string" ? slot.prompt : "",
         loraName: typeof slot?.loraName === "string" && slot.loraName ? slot.loraName : null,
@@ -4010,6 +4011,18 @@ class GenerationStore {
     };
   }
 
+  /** Add or remove characters at the end; boxes of the ones that stay are kept. */
+  setMultiCharacterCount(count: number): void {
+    const target = Math.min(MAX_CHARACTERS, Math.max(MIN_CHARACTERS, Math.round(count)));
+    const current = this.multiCharacters;
+    if (target === current.length) return;
+    this.multiCharacters =
+      target < current.length
+        ? current.slice(0, target)
+        : [...current, ...Array.from({ length: target - current.length }, emptyMultiCharacterSlot)];
+    this.saveSettings();
+  }
+
   /**
    * Restore the Characters panel from the JSON an image recorded under
    * `mooshie_multi_character`. Reads defensively: metadata comes from files the
@@ -4023,7 +4036,7 @@ class GenerationStore {
     } catch {
       return false;
     }
-    if (!data || data.enabled !== true || !Array.isArray(data.characters) || data.characters.length !== 2) {
+    if (!data || data.enabled !== true || !Array.isArray(data.characters) || data.characters.length < MIN_CHARACTERS || data.characters.length > MAX_CHARACTERS) {
       return false;
     }
     this.multiCharacters = data.characters.map((character) => {

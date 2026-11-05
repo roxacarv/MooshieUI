@@ -3,8 +3,8 @@
 //! Each character gets its own prompt, an optional LoRA and a slice of the
 //! canvas, and the RS MultiCharacter Sampler custom node pack (pinned in
 //! `comfyui/nodes.rs`) routes them so attributes and LoRAs stay with the
-//! character they belong to. Iteration one: exactly two characters side by side,
-//! no interaction between them.
+//! character they belong to. Two to six characters, in columns by default or in
+//! boxes the user places.
 
 use serde_json::{json, Value};
 
@@ -14,8 +14,11 @@ use crate::comfyui::types::{GenerationParams, MultiCharacterParams};
 /// Every RS builder node requires all ten slots, whether they are used or not.
 const SLOTS: usize = 10;
 
-/// Characters the first iteration supports.
-pub const CHARACTER_COUNT: usize = 2;
+/// How many characters one image may have. The pack allows ten regions; the
+/// app stops at six (the most NovelAI V4 allows) until crowding has been
+/// measured further.
+pub const MIN_CHARACTERS: usize = 2;
+pub const MAX_CHARACTERS: usize = 6;
 
 /// Defaults of `initial_spatial_separation` / `initial_character_gain` on the
 /// sampler; `cohesion` moves them toward the values that blended scenes best.
@@ -47,9 +50,9 @@ pub fn validate(params: &GenerationParams) -> Result<(), String> {
                 .into(),
         );
     }
-    if multi.characters.len() != CHARACTER_COUNT {
+    if !(MIN_CHARACTERS..=MAX_CHARACTERS).contains(&multi.characters.len()) {
         return Err(format!(
-            "Multi-character generation needs exactly {CHARACTER_COUNT} characters."
+            "Multi-character generation needs between {MIN_CHARACTERS} and {MAX_CHARACTERS} characters."
         ));
     }
     for (index, character) in multi.characters.iter().enumerate() {
@@ -142,7 +145,10 @@ fn overlapping_box(index: usize, count: usize) -> (f64, f64, f64, f64) {
     if count == 2 {
         (if index == 0 { 0.35 } else { 0.65 }, 0.5, 0.65, 1.0)
     } else {
-        column(index, count)
+        // Same idea for more: boxes 1.3 columns wide, spread edge to edge.
+        let width = (1.3 / count as f64).min(1.0);
+        let step = (1.0 - width) / (count as f64 - 1.0);
+        (width / 2.0 + index as f64 * step, 0.5, width, 1.0)
     }
 }
 
@@ -181,6 +187,20 @@ const COMMON_PRIOR_MIN: f64 = 0.05;
 const COMMON_PRIOR_MAX: f64 = 0.8;
 const COMMON_BOOST_MIN: f64 = 0.1;
 const COMMON_BOOST_MAX: f64 = 0.43;
+
+fn round4(value: f64) -> f64 {
+    (value * 10_000.0).round() / 10_000.0
+}
+
+/// One axis of a box (centre, size) rounded to four decimals without leaving
+/// the image. Rounding a centre alone can push an edge past 1 (four columns:
+/// 0.875 + 0.125 became 0.88 + 0.125), and the sampler refuses any box that
+/// leaves the image.
+fn axis_inside(centre: f64, size: f64) -> (f64, f64) {
+    let centre = round4(centre).clamp(0.0, 1.0);
+    let size = round4(size).min(2.0 * centre).min(2.0 * (1.0 - centre));
+    (centre, size)
+}
 
 fn round2(value: f64) -> f64 {
     (value * 100.0).round() / 100.0
@@ -332,10 +352,12 @@ pub fn build(params: &GenerationParams, seed: i64) -> WorkflowResult {
             format!("character{slot}_geometry"),
             json!(if slot <= count { "box" } else { "point" }),
         );
-        position_inputs.insert(format!("character{slot}_x"), json!(round2(x)));
-        position_inputs.insert(format!("character{slot}_y"), json!(round2(y)));
-        position_inputs.insert(format!("character{slot}_width"), json!(round2(width)));
-        position_inputs.insert(format!("character{slot}_height"), json!(round2(height)));
+        let (x, width) = axis_inside(x, width);
+        let (y, height) = axis_inside(y, height);
+        position_inputs.insert(format!("character{slot}_x"), json!(x));
+        position_inputs.insert(format!("character{slot}_y"), json!(y));
+        position_inputs.insert(format!("character{slot}_width"), json!(width));
+        position_inputs.insert(format!("character{slot}_height"), json!(height));
     }
     pipe = add_node(
         &mut workflow,
@@ -695,7 +717,12 @@ mod tests {
 
         let mut p = params([None, None]);
         p.multi_character.as_mut().unwrap().characters.pop();
-        assert!(validate(&p).unwrap_err().contains("exactly 2"));
+        assert!(validate(&p).unwrap_err().contains("between 2 and 6"));
+
+        let mut p = params([None, None]);
+        let extra = p.multi_character.as_ref().unwrap().characters[0].clone();
+        p.multi_character.as_mut().unwrap().characters = vec![extra; 7];
+        assert!(validate(&p).unwrap_err().contains("between 2 and 6"));
 
         let mut p = params([None, None]);
         p.multi_character.as_mut().unwrap().characters[1].prompt = "  ".into();
@@ -818,5 +845,86 @@ mod tests {
         let inputs = &node(&result, "RSMultiCharacterPosition")["inputs"];
         assert_eq!(inputs["character1_x"], 0.3);
         assert_eq!(inputs["character2_x"], 0.65);
+    }
+
+    #[test]
+    fn three_to_six_characters_fill_every_slot_in_order() {
+        for count in 3..=MAX_CHARACTERS {
+            let mut p = params([Some(lora("a.safetensors")), None]);
+            let template = p.multi_character.as_ref().unwrap().characters[1].clone();
+            p.multi_character
+                .as_mut()
+                .unwrap()
+                .characters
+                .resize(count, template);
+            for (i, c) in p
+                .multi_character
+                .as_mut()
+                .unwrap()
+                .characters
+                .iter_mut()
+                .enumerate()
+            {
+                c.prompt = format!("char{i}");
+            }
+            assert_eq!(validate(&p), Ok(()));
+            let result = build(&p, 1);
+            let prompt = node(&result, "RSMultiCharacterPrompt");
+            assert_eq!(prompt["inputs"]["character_count"], count);
+            let position = &node(&result, "RSMultiCharacterPosition")["inputs"];
+            assert_eq!(position["character_count"], count);
+            for slot in 1..=count {
+                assert_eq!(position[format!("character{slot}_geometry")], "box");
+            }
+            // Columns tile the width without a gap.
+            let width = position["character1_width"].as_f64().unwrap();
+            assert!((width - round4(1.0 / count as f64)).abs() < 1e-3);
+        }
+    }
+
+    #[test]
+    fn overlapping_boxes_for_many_characters_stay_inside_the_image() {
+        for count in 2..=MAX_CHARACTERS {
+            for index in 0..count {
+                let (x, y, w, h) = overlapping_box(index, count);
+                assert!(
+                    x - w / 2.0 >= -1e-9 && x + w / 2.0 <= 1.0 + 1e-9,
+                    "{count}/{index}"
+                );
+                assert!(w >= MIN_REGION_SIDE && y == 0.5 && h == 1.0);
+            }
+        }
+        // Neighbours overlap.
+        let (a, _, aw, _) = overlapping_box(0, 4);
+        let (b, _, _, _) = overlapping_box(1, 4);
+        assert!(b - a < aw);
+    }
+
+    #[test]
+    fn rounded_boxes_never_leave_the_image() {
+        // Four columns put the last box at 0.875 +/- 0.125; two-decimal rounding of the
+        // centre alone gave an edge of 1.005, which the sampler refuses.
+        for count in 2..=MAX_CHARACTERS {
+            let mut p = params([None, None]);
+            let template = p.multi_character.as_ref().unwrap().characters[0].clone();
+            p.multi_character
+                .as_mut()
+                .unwrap()
+                .characters
+                .resize(count, template);
+            let position = build(&p, 1);
+            let inputs = &node(&position, "RSMultiCharacterPosition")["inputs"];
+            for slot in 1..=count {
+                for (c, s) in [("x", "width"), ("y", "height")] {
+                    let centre = inputs[format!("character{slot}_{c}")].as_f64().unwrap();
+                    let size = inputs[format!("character{slot}_{s}")].as_f64().unwrap();
+                    assert!(centre - size / 2.0 >= -1e-9, "{count}/{slot}");
+                    assert!(centre + size / 2.0 <= 1.0 + 1e-9, "{count}/{slot}");
+                }
+            }
+        }
+        // A box dragged without snapping, centre 0.9625, width 0.075.
+        let (x, w) = axis_inside(0.9625, 0.075);
+        assert!(x + w / 2.0 <= 1.0 + 1e-9);
     }
 }

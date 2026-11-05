@@ -199,6 +199,10 @@ generation with it is refused with a message that says to use it in the main
 LoRA list or to describe the character by its tag. The check reads the file
 header, so it only runs for a ComfyUI the app launched itself.
 
+## More than two characters
+
+Two to six characters. Add or remove them below the cards; the canvas has Row, Grid and Pyramid presets. What measured well: 3 characters at 1536x768 and 4 at 1792x832 (all right, in order, 3 of 3 seeds each). Two things matter: keep group phrases such as `group photo`, `standing side by side` and `3girls` out of the main prompt (they made every character appear twice), and give each character about half its height in width (the panel warns when the image is narrower than 0.5 x count). Five and six characters are not measured. Time without LoRAs stays close to the two-character time; each character LoRA adds a lot in high quality mode.
+
 ## Per-character negative
 
 Not supported. The pinned RS pack's builder nodes take no negative per character; only its deprecated all-in-one prompt node does. Put exclusions in the main negative prompt, or state the wanted trait positively in the character's own prompt. Checked again whenever the pin is bumped.

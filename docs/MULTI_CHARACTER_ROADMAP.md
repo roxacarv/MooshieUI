@@ -79,6 +79,8 @@ Goal: two characters that touch or look at each other, reliably.
 
 ### 4. More than two characters
 
+**Built (2 to 6 characters):** add/remove buttons, six marker colours, layout presets (row, grid, pyramid) on the canvas, a warning when the image is too narrow, a tip against group phrases, and a rough time note when LoRAs are used. Measured: 3 characters at 1536x768 and 4 at 1792x832 came out right in 3/3 each once group phrases were left out of the main prompt; see the skill log. Five and six, and triangle layouts with interaction, are untested.
+
 - Character count control (3 up to the pack's limit of 10 regions in total).
 - Layout presets (row, triangle) feeding step 1.
 - Cost grows with each LoRA in precision mode (about 4x for two); measure and

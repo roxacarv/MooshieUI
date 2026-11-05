@@ -8,6 +8,7 @@
   import { checkNodeAvailable, ensureMultiCharacterNodes, loraChangesTextAdapter } from "../../utils/api.js";
   import { restartComfyuiAndWait } from "../../utils/comfyuiRestart.js";
   import CharacterLayoutCanvas from "./CharacterLayoutCanvas.svelte";
+  import { CHARACTER_LOOKS, MAX_CHARACTERS, MIN_CHARACTERS } from "../../utils/characterRegion.js";
 
   /** The sampler node the whole workflow hangs off (see MULTI_CHARACTER_PACKAGES). */
   const SAMPLER_CLASS = "RSMultiCharacterSampler";
@@ -22,6 +23,18 @@
   let adapterLoras = $state<Record<string, boolean>>({});
 
   const characters = $derived(generation.multiCharacters);
+
+  /** Aspect ratio each character needs at least; measured: 3 in a square dropped one in 3 of 3 tries, in 2:1 all 3 stayed. */
+  const MIN_ASPECT_PER_CHARACTER = 0.5;
+  const neededAspect = $derived(characters.length * MIN_ASPECT_PER_CHARACTER);
+  const tooNarrow = $derived(
+    generation.width > 0 && generation.height > 0 && generation.width / generation.height < neededAspect - 0.01,
+  );
+  const loraCount = $derived(characters.filter((slot) => slot.loraName).length);
+  /** Rough time factor against one image, extrapolated from two LoRAs (about 4x precise, 1.7x normal). */
+  const timeFactor = $derived(
+    generation.multiCharacterLoraMode === "precision" ? 1 + 1.5 * loraCount : 1 + 0.35 * loraCount,
+  );
 
   $effect(() => {
     for (const slot of characters) {
@@ -169,7 +182,7 @@
             {locale.t("generation.multi_character.character", { n: String(index + 1) })}
           </span>
           <span
-            class="h-2.5 w-2.5 rounded-full {index === 0 ? 'bg-amber-400' : 'bg-sky-400'}"
+            class="h-2.5 w-2.5 rounded-full {CHARACTER_LOOKS[index % CHARACTER_LOOKS.length].dot}"
             aria-hidden="true"
           ></span>
         </div>
@@ -220,6 +233,43 @@
         {/if}
       </div>
     {/each}
+
+    <div class="flex items-center justify-between text-[11px]">
+      <button
+        class="text-indigo-400 transition-colors hover:text-indigo-300 disabled:opacity-40"
+        disabled={characters.length >= MAX_CHARACTERS}
+        onclick={() => generation.setMultiCharacterCount(characters.length + 1)}
+      >
+        {locale.t("generation.multi_character.add_character")}
+      </button>
+      <button
+        class="text-indigo-400 transition-colors hover:text-indigo-300 disabled:opacity-40"
+        disabled={characters.length <= MIN_CHARACTERS}
+        onclick={() => generation.setMultiCharacterCount(characters.length - 1)}
+      >
+        {locale.t("generation.multi_character.remove_character")}
+      </button>
+    </div>
+
+    {#if tooNarrow}
+      <p class="rounded-lg border border-amber-600/30 bg-amber-600/10 px-3 py-2 text-[11px] text-amber-300">
+        {locale.t("generation.multi_character.narrow_warning", {
+          count: String(characters.length),
+          ratio: neededAspect.toFixed(1),
+        })}
+      </p>
+    {/if}
+    {#if characters.length >= 3}
+      <p class="text-[11px] text-neutral-500">{locale.t("generation.multi_character.group_phrase_tip")}</p>
+    {/if}
+    {#if loraCount > 0}
+      <p class="text-[11px] text-neutral-500">
+        {locale.t("generation.multi_character.cost_note", {
+          n: String(loraCount),
+          factor: timeFactor.toFixed(1),
+        })}
+      </p>
+    {/if}
 
     <div class="space-y-1.5">
       <div class="text-neutral-500">{locale.t("generation.multi_character.interaction")}</div>
