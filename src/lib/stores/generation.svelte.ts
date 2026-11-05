@@ -3647,6 +3647,16 @@ class GenerationStore {
       styleTransferMegapixels: this.styleTransferMegapixels,
       styleTransferBlocks: this.styleTransferBlocks,
       animaTeacacheEnabled: this.animaTeacacheEnabled,
+      multiCharacterEnabled: this.multiCharacterEnabled,
+      multiCharacters: this.multiCharacters,
+      multiCharacterLoraMode: this.multiCharacterLoraMode,
+      multiCharacterCohesion: this.multiCharacterCohesion,
+      multiCharacterSceneStrength: this.multiCharacterSceneStrength,
+      multiCharacterShareScene: this.multiCharacterShareScene,
+      multiCharacterSayPosition: this.multiCharacterSayPosition,
+      multiCharacterInteraction: this.multiCharacterInteraction,
+      multiCharacterTouch: this.multiCharacterTouch,
+      multiCharacterActions: this.multiCharacterActions,
       styleRefEnabled: this.styleRefEnabled,
       styleRefImage: this.styleRefImage,
       styleRefStrength: this.styleRefStrength,
@@ -3997,12 +4007,12 @@ class GenerationStore {
    * does not apply: only Anima text-to-image runs through the multi-character
    * workflow, so a leftover toggle never leaks into another model.
    */
-  multiCharacterParams(): MultiCharacterParams | null {
+  multiCharacterParams(resolve: (text: string, salt: number) => string = (text) => text): MultiCharacterParams | null {
     if (!this.multiCharacterEnabled || !this.isAnima || this.mode !== "txt2img") return null;
     return {
       enabled: true,
-      characters: this.multiCharacters.map((slot) => ({
-        prompt: slot.prompt.trim(),
+      characters: this.multiCharacters.map((slot, index) => ({
+        prompt: resolve(slot.prompt, 2 + index).trim(),
         lora: slot.loraName
           ? {
               name: slot.loraName,
@@ -4019,7 +4029,7 @@ class GenerationStore {
       say_position: this.multiCharacterSayPosition,
       touch: this.multiCharacterTouch,
       actions: parseActions(this.multiCharacterActions, this.multiCharacters.length),
-      interaction: this.multiCharacterInteraction.trim(),
+      interaction: resolve(this.multiCharacterInteraction, 2 + MAX_CHARACTERS).trim(),
     };
   }
 
@@ -4151,10 +4161,19 @@ class GenerationStore {
     const inlinePositiveIds = promptPresets.inlinePresetIds(effectivePositive);
     const inlineNegativeIds = promptPresets.inlinePresetIds(effectiveNegative);
     const novelAiCharacters = this.resolveNovelAiCharacters(options.fixedPresetChoices);
+    // Multi-character fields are prompt boxes too: a chunk written there must not
+    // be appended a second time by the active-chunk pass below.
+    const multiCharacterInlineIds = this.multiCharacterEnabled
+      ? [
+          ...this.multiCharacters.flatMap((slot) => [...promptPresets.inlinePresetIds(slot.prompt)]),
+          ...promptPresets.inlinePresetIds(this.multiCharacterInteraction),
+        ]
+      : [];
     const inlinePresetIds = new Set([
       ...inlinePositiveIds,
       ...inlineNegativeIds,
       ...novelAiCharacters.inlineIds,
+      ...multiCharacterInlineIds,
     ]);
     const inlinePositiveRaw = promptPresets.resolveInline(effectivePositive, {
       fixedChoices: options.fixedPresetChoices,
@@ -4524,7 +4543,12 @@ class GenerationStore {
       anima_ref_guidance: this.animaRefGuidance,
       anima_ref_correction: this.animaRefCorrection,
       anima_teacache_enabled: this.animaTeacacheEnabled,
-      multi_character: this.multiCharacterParams(),
+      // Chunks (`@[Name]`), wildcards and `{a|b}` alternation resolve in the character
+      // fields the way they do in the main prompt, seeded from the same roll.
+      multi_character: this.multiCharacterParams((text, salt) => {
+        const inline = promptPresets.resolveInline(text, { fixedChoices: options.fixedPresetChoices });
+        return hasRandomSyntax(inline) ? expandRandomPrompt(inline, rngSeed + salt) : inline;
+      }),
       // Only the slots the current family shows: a FLUX 3 session's extra
       // references must not ride along once a 1- or 3-slot model is picked.
       edit_reference_images: this.editReferenceImages
