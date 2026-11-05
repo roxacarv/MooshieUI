@@ -965,6 +965,8 @@ class GenerationStore {
   multiCharacterSceneStrength = $state(0.6);
   multiCharacterShareScene = $state(true);
   multiCharacterSayPosition = $state(false);
+  /** Characters without their own box overlap even with no interaction text. */
+  multiCharacterTouch = $state(false);
   /** What the characters do together; empty means they do not interact. */
   multiCharacterInteraction = $state("");
   // --- Style Reference (IP-Adapter / Flux Redux) ---
@@ -3284,6 +3286,8 @@ class GenerationStore {
     }
     if (typeof saved.multiCharacterInteraction === "string")
       this.multiCharacterInteraction = saved.multiCharacterInteraction;
+    if (typeof saved.multiCharacterTouch === "boolean")
+      this.multiCharacterTouch = saved.multiCharacterTouch;
     if (typeof saved.multiCharacterSayPosition === "boolean")
       this.multiCharacterSayPosition = saved.multiCharacterSayPosition;
     if (saved.multiCharacterLoraMode === "precision" || saved.multiCharacterLoraMode === "normal")
@@ -3477,6 +3481,7 @@ class GenerationStore {
         multiCharacterSceneStrength: this.multiCharacterSceneStrength,
         multiCharacterShareScene: this.multiCharacterShareScene,
         multiCharacterSayPosition: this.multiCharacterSayPosition,
+        multiCharacterTouch: this.multiCharacterTouch,
         multiCharacterInteraction: this.multiCharacterInteraction,
         styleRefEnabled: this.styleRefEnabled,
         styleRefImage: this.styleRefImage,
@@ -4025,6 +4030,7 @@ class GenerationStore {
       scene_strength: this.multiCharacterSceneStrength,
       share_scene: this.multiCharacterShareScene,
       say_position: this.multiCharacterSayPosition,
+      touch: this.multiCharacterTouch,
       interaction: this.multiCharacterInteraction.trim(),
     };
   }
@@ -4076,6 +4082,7 @@ class GenerationStore {
     }
     if (typeof data.share_scene === "boolean") this.multiCharacterShareScene = data.share_scene;
     this.multiCharacterSayPosition = data.say_position === true;
+    this.multiCharacterTouch = data.touch === true;
     this.multiCharacterInteraction = typeof data.interaction === "string" ? data.interaction : "";
     this.multiCharacterEnabled = true;
     return true;

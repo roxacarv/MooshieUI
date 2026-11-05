@@ -73,6 +73,7 @@ export interface MultiCharacterParams {
   share_scene: boolean;
   /** Also say where each character stands in words (left side, right side). */
   say_position: boolean;
+  touch: boolean;
   /** What the characters do together; appended to every character, and they overlap while it is set. */
   interaction: string;
 }

@@ -157,6 +157,11 @@ pub struct MultiCharacterParams {
     /// columns turn each half into its own hugging pair.
     #[serde(default)]
     pub interaction: String,
+    /// Let characters without a box of their own overlap even when no
+    /// interaction text is set (actions written per character, such as
+    /// "kissing another girl's cheek" and "being kissed on the cheek").
+    #[serde(default)]
+    pub touch: bool,
 }
 
 fn default_multi_character_lora_mode() -> String {

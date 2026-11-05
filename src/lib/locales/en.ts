@@ -4831,6 +4831,8 @@ const en: Record<string, string> = {
   "generation.multi_character.narrow_warning": "This image is too narrow for {count} characters: each needs roughly half its height in width. Use an aspect ratio of about {ratio}:1 or wider, or characters get dropped.",
   "generation.multi_character.group_phrase_tip": "Leave phrases like group photo, standing side by side or 3girls out of the main prompt. In tests they made every character appear twice.",
   "generation.multi_character.cost_note": "{n} with a LoRA: expect about {factor}x the time of a normal image.",
+  "generation.multi_character.touch": "Characters touch (overlap the boxes)",
+  "generation.multi_character.touch_hint": "Turn on when one character acts on another (a kiss, a hug, holding hands). Without overlap each character stays in its own column and the action rarely connects. Write the action in the acting character's prompt and the receiving one in the other's.",
   "generation.multi_character.interaction_hint": "Added to every character. While it is filled, the boxes overlap so they can touch; drag them to change that. Features can mix between characters, so try other seeds if they do.",
   "generation.multi_character.back_view_tip": "If a character turns away from the viewer, add from behind, back, facing away to the negative prompt.",
   "generation.multi_character.known_character_tip": "Well-known characters usually need no LoRA: their tag is enough (for example yor briar, uzaki tsuki). A LoRA is optional, for characters the model does not know.",

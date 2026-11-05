@@ -426,6 +426,7 @@ mod tests {
             share_scene: true,
             say_position: false,
             interaction: String::new(),
+            touch: false,
         });
         assert!(snapshot(&p).unwrap().multi_character.is_none());
     }

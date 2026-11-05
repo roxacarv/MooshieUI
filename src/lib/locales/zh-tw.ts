@@ -4877,6 +4877,8 @@ const zhTw: Record<string, string> = {
   "generation.multi_character.narrow_warning": "這張圖對 {count} 個角色來說太窄：每個角色需要約為其高度一半的寬度。請使用約 {ratio}:1 或更寬的比例，否則角色會消失。",
   "generation.multi_character.group_phrase_tip": "請不要在主提示詞中寫 group photo、standing side by side 或 3girls 之類的詞句。測試中它們會讓每個角色出現兩次。",
   "generation.multi_character.cost_note": "{n} 個使用 LoRA：預計耗時約為一般圖像的 {factor} 倍。",
+  "generation.multi_character.touch": "角色互相接觸（重疊方框）",
+  "generation.multi_character.touch_hint": "當一個角色對另一個角色做動作時開啟（親吻、擁抱、牽手）。不重疊時每個角色停留在各自的欄位，動作很難銜接。把動作寫在施動角色的提示詞中，把接受方的說法寫在另一個角色的提示詞中。",
   "generation.multi_character.interaction_hint": "會加入每個角色。填寫後，方框會重疊以便角色接觸；可拖曳調整。特徵可能在角色之間混合，出現時請嘗試其他種子。",
   "generation.multi_character.back_view_tip": "如果角色背對畫面，請在負面提示詞中加入 from behind, back, facing away。",
   "generation.multi_character.known_character_tip": "知名角色通常不需要 LoRA，使用標籤即可（例如 yor briar、uzaki tsuki）。LoRA 是選用的，適用於模型不認識的角色。",

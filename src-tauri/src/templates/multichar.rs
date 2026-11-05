@@ -152,6 +152,12 @@ fn overlapping_box(index: usize, count: usize) -> (f64, f64, f64, f64) {
     }
 }
 
+/// Whether characters without a box of their own overlap: when they touch, or
+/// while interaction text is set.
+fn overlaps(multi: &MultiCharacterParams) -> bool {
+    multi.touch || !interaction_text(multi).is_empty()
+}
+
 /// What the characters do together, trimmed; empty when not interacting.
 fn interaction_text(multi: &MultiCharacterParams) -> String {
     strip_lora_tags(&multi.interaction).trim().to_string()
@@ -163,7 +169,7 @@ fn region_for(multi: &MultiCharacterParams, index: usize) -> (f64, f64, f64, f64
     let count = multi.characters.len();
     match multi.characters.get(index).and_then(|c| c.region) {
         Some(r) => (r.x, r.y, r.width, r.height),
-        None if !interaction_text(multi).is_empty() => overlapping_box(index, count),
+        None if overlaps(multi) => overlapping_box(index, count),
         None => column(index, count),
     }
 }
@@ -508,6 +514,7 @@ mod tests {
                 share_scene: false,
                 say_position: false,
                 interaction: String::new(),
+                touch: false,
             }),
             ..Default::default()
         }
@@ -950,5 +957,28 @@ mod tests {
             node(&result, "RSMultiCharacterSampler")["inputs"]["width"],
             1376
         );
+    }
+
+    #[test]
+    fn touching_overlaps_the_boxes_without_interaction_text() {
+        let mut p = params([None, None]);
+        let position = |p: &GenerationParams| {
+            let r = build(p, 1);
+            node(&r, "RSMultiCharacterPosition")["inputs"].clone()
+        };
+        assert_eq!(position(&p)["character1_width"], 0.5);
+        p.multi_character.as_mut().unwrap().touch = true;
+        let touching = position(&p);
+        assert_eq!(touching["character1_width"], 0.65);
+        assert_eq!(touching["character1_x"], 0.35);
+        // The prompts are untouched: no interaction text was set.
+        let r = build(&p, 1);
+        let prompts: Vec<String> = r
+            .workflow
+            .values()
+            .filter(|n| n["class_type"] == "PrimitiveStringMultiline")
+            .map(|n| n["inputs"]["value"].as_str().unwrap().to_string())
+            .collect();
+        assert!(prompts.iter().all(|t| !t.contains("hugging")));
     }
 }
