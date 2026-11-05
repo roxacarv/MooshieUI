@@ -4810,6 +4810,8 @@ const ko: Record<string, string> = {
   "generation.multi_character.narrow_warning": "이 이미지는 {count}명에게는 너무 좁습니다. 각 캐릭터에게 높이의 절반 정도 너비가 필요합니다. 가로세로 비율을 약 {ratio}:1 이상으로 하지 않으면 캐릭터가 사라집니다.",
   "generation.multi_character.group_phrase_tip": "group photo, standing side by side, 3girls 같은 표현은 메인 프롬프트에 넣지 마세요. 테스트에서 각 캐릭터가 두 번 나타났습니다.",
   "generation.multi_character.cost_note": "LoRA 사용 {n}명: 일반 이미지의 약 {factor}배 시간이 걸립니다.",
+  "generation.multi_character.touch": "캐릭터가 서로 닿음(상자 겹치기)",
+  "generation.multi_character.touch_hint": "한 캐릭터가 다른 캐릭터에게 행동할 때(키스, 포옹, 손잡기) 켜세요. 겹치지 않으면 각 캐릭터가 자기 열에 머물러 동작이 이어지기 어렵습니다. 동작은 하는 쪽 프롬프트에, 받는 쪽 표현은 상대 프롬프트에 쓰세요.",
   "generation.multi_character.interaction_hint": "모든 캐릭터에 추가됩니다. 입력된 동안 상자가 겹쳐 서로 닿을 수 있습니다. 드래그해서 바꿀 수 있습니다. 특징이 섞일 수 있으니 그럴 땐 다른 시드를 시도하세요.",
   "generation.multi_character.back_view_tip": "캐릭터가 등을 돌리면 네거티브 프롬프트에 from behind, back, facing away 를 추가하세요.",
   "generation.multi_character.known_character_tip": "유명한 캐릭터는 보통 LoRA 없이 태그만으로 충분합니다(예: yor briar, uzaki tsuki). LoRA는 모델이 모르는 캐릭터를 위한 선택 사항입니다.",

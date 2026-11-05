@@ -4849,6 +4849,8 @@ const pl: Record<string, string> = {
   "generation.multi_character.narrow_warning": "Ten obraz jest za wąski dla {count} postaci: każda potrzebuje szerokości równej mniej więcej połowie swojej wysokości. Użyj proporcji około {ratio}:1 lub szerszej, inaczej postacie znikną.",
   "generation.multi_character.group_phrase_tip": "Nie wpisuj w głównym prompcie fraz takich jak group photo, standing side by side czy 3girls. W testach powodowały, że każda postać pojawiała się dwa razy.",
   "generation.multi_character.cost_note": "{n} z LoRA: spodziewaj się około {factor}x czasu zwykłego obrazu.",
+  "generation.multi_character.touch": "Postacie się dotykają (nakładające się ramki)",
+  "generation.multi_character.touch_hint": "Włącz, gdy jedna postać działa na drugą (pocałunek, uścisk, trzymanie za rękę). Bez nakładania każda postać zostaje w swojej kolumnie i akcja rzadko się łączy. Wpisz czynność w prompcie postaci działającej, a stronę odbiorcy w prompcie drugiej.",
   "generation.multi_character.interaction_hint": "Dodawane do każdej postaci. Gdy pole jest wypełnione, ramki nakładają się, aby postacie mogły się dotykać; przeciągnij je, aby to zmienić. Cechy mogą się mieszać między postaciami, więc w razie potrzeby spróbuj innych seedów.",
   "generation.multi_character.back_view_tip": "Jeśli postać odwraca się plecami, dodaj from behind, back, facing away do promptu negatywnego.",
   "generation.multi_character.known_character_tip": "Znane postacie zwykle nie wymagają LoRA: wystarczy ich tag (na przykład yor briar, uzaki tsuki). LoRA jest opcjonalna, dla postaci, których model nie zna.",

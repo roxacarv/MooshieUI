@@ -4836,6 +4836,8 @@ const fr: Record<string, string> = {
   "generation.multi_character.narrow_warning": "Cette image est trop étroite pour {count} personnages : chacun a besoin d'environ la moitié de sa hauteur en largeur. Utilisez un ratio d'environ {ratio}:1 ou plus large, sinon des personnages disparaissent.",
   "generation.multi_character.group_phrase_tip": "Évitez des expressions comme group photo, standing side by side ou 3girls dans le prompt principal. Lors des tests, elles faisaient apparaître chaque personnage en double.",
   "generation.multi_character.cost_note": "{n} avec LoRA : comptez environ {factor}x le temps d'une image normale.",
+  "generation.multi_character.touch": "Les personnages se touchent (cadres qui se chevauchent)",
+  "generation.multi_character.touch_hint": "À activer quand un personnage agit sur un autre (baiser, étreinte, main dans la main). Sans chevauchement, chaque personnage reste dans sa colonne et l'action se connecte rarement. Écrivez l'action dans le prompt de celui qui agit et le côté de celui qui la reçoit dans l'autre.",
   "generation.multi_character.interaction_hint": "Ajouté à chaque personnage. Tant qu'il est rempli, les cadres se chevauchent pour qu'ils puissent se toucher ; faites-les glisser pour changer cela. Les traits peuvent se mélanger entre personnages, essayez d'autres seeds si c'est le cas.",
   "generation.multi_character.back_view_tip": "Si un personnage tourne le dos, ajoutez from behind, back, facing away au prompt négatif.",
   "generation.multi_character.known_character_tip": "Les personnages célèbres n'ont en général pas besoin de LoRA : leur tag suffit (par exemple yor briar, uzaki tsuki). La LoRA est facultative, pour les personnages que le modèle ne connaît pas.",

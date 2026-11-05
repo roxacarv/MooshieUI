@@ -4812,6 +4812,8 @@ const de: Record<string, string> = {
   "generation.multi_character.narrow_warning": "Dieses Bild ist zu schmal für {count} Figuren: Jede braucht etwa die halbe Höhe als Breite. Nutze ein Seitenverhältnis von etwa {ratio}:1 oder breiter, sonst fallen Figuren weg.",
   "generation.multi_character.group_phrase_tip": "Lass Formulierungen wie group photo, standing side by side oder 3girls aus dem Haupt-Prompt weg. In Tests ließen sie jede Figur doppelt erscheinen.",
   "generation.multi_character.cost_note": "{n} mit LoRA: etwa {factor}x so lange wie ein normales Bild.",
+  "generation.multi_character.touch": "Figuren berühren sich (Rahmen überlappen)",
+  "generation.multi_character.touch_hint": "Einschalten, wenn eine Figur auf eine andere einwirkt (Kuss, Umarmung, Händchenhalten). Ohne Überlappung bleibt jede Figur in ihrer Spalte und die Handlung kommt selten zustande. Schreibe die Handlung in den Prompt der handelnden Figur und die Empfängerseite in den der anderen.",
   "generation.multi_character.interaction_hint": "Wird jeder Figur hinzugefügt. Solange es ausgefüllt ist, überlappen sich die Rahmen, damit sie sich berühren können; ziehe sie, um das zu ändern. Merkmale können sich zwischen den Figuren vermischen, probiere dann andere Seeds.",
   "generation.multi_character.back_view_tip": "Wenn sich ein Charakter vom Betrachter abwendet, füge from behind, back, facing away zum negativen Prompt hinzu.",
   "generation.multi_character.known_character_tip": "Bekannte Figuren brauchen meist keine LoRA: ihr Tag genügt (zum Beispiel yor briar, uzaki tsuki). Eine LoRA ist optional, für Figuren, die das Modell nicht kennt.",

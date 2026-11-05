@@ -4835,6 +4835,8 @@ const ja: Record<string, string> = {
   "generation.multi_character.narrow_warning": "この画像は{count}人には細すぎます。各キャラクターには高さの半分ほどの幅が必要です。縦横比を約{ratio}:1以上にしないと、キャラクターが消えます。",
   "generation.multi_character.group_phrase_tip": "group photo、standing side by side、3girls のような語句はメインプロンプトに入れないでください。テストでは各キャラクターが2回現れました。",
   "generation.multi_character.cost_note": "LoRA付き{n}人：通常の画像の約{factor}倍の時間がかかります。",
+  "generation.multi_character.touch": "キャラクターが触れ合う（枠を重ねる）",
+  "generation.multi_character.touch_hint": "一方が他方に働きかけるとき（キス、ハグ、手をつなぐ）にオンにします。重ならないと各キャラクターは自分の列に留まり、動作がつながりにくくなります。動作は行う側のプロンプトに、受ける側の表現はもう一方に書いてください。",
   "generation.multi_character.interaction_hint": "すべてのキャラクターに追加されます。入力中は枠が重なり、触れ合えるようになります。ドラッグで変更できます。特徴が混ざることがあるので、その場合は別のシードを試してください。",
   "generation.multi_character.back_view_tip": "キャラクターが後ろを向く場合は、ネガティブプロンプトに from behind, back, facing away を追加してください。",
   "generation.multi_character.known_character_tip": "有名なキャラクターは通常LoRAなしでタグだけで出せます（例：yor briar、uzaki tsuki）。LoRAは任意で、モデルが知らないキャラクター向けです。",

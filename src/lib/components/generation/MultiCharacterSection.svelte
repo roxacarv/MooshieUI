@@ -286,6 +286,22 @@
       <p class="text-[11px] text-neutral-500">{locale.t("generation.multi_character.interaction_hint")}</p>
     </div>
 
+    <div class="space-y-1.5">
+      <label class="flex items-center gap-2 text-neutral-400 select-none cursor-pointer">
+        <input
+          type="checkbox"
+          class="accent-indigo-500"
+          checked={generation.multiCharacterTouch}
+          onchange={(e) => {
+            generation.multiCharacterTouch = e.currentTarget.checked;
+            generation.saveSettings();
+          }}
+        />
+        <span>{locale.t("generation.multi_character.touch")}</span>
+      </label>
+      <p class="text-[11px] text-neutral-500">{locale.t("generation.multi_character.touch_hint")}</p>
+    </div>
+
     <CharacterLayoutCanvas />
 
     <div class="space-y-1.5">
